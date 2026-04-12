@@ -417,44 +417,45 @@ function App() {
             else if (currentDuration > 250) setBlinkStatus('dash');
             else setBlinkStatus('dot');
         }
-      } else {
-        if (stateRef.current.blinkDurationStart > 0) {
-          const duration = now - stateRef.current.blinkDurationStart;
-          stateRef.current.blinkDurationStart = 0;
-          
-          if (stateRef.current.inputMode === 'standard') {
-              if (duration < 300 && duration > 50) {
-                if (stateRef.current.hoverBtn) {
-                   const letter = stateRef.current.hoverBtn.getAttribute('data-letter');
-                   if (letter) handleKeyPress(letter);
+        } else {
+          if (stateRef.current.blinkDurationStart > 0) {
+            const duration = now - stateRef.current.blinkDurationStart;
+            stateRef.current.blinkDurationStart = 0;
+            
+            if (stateRef.current.inputMode === 'standard') {
+                if (duration < 300 && duration > 50) {
+                  if (stateRef.current.hoverBtn) {
+                     const letter = stateRef.current.hoverBtn.getAttribute('data-letter');
+                     if (letter) handleKeyPress(letter);
+                  }
+                } else if (duration >= 300) {
+                  handleKeyPress("SPACE");
                 }
-              } else if (duration >= 300) {
-                handleKeyPress("SPACE");
-              }
-          } else {
-              processMorseDuration(duration);
-        } else if (stateRef.current.inputMode === 'morse' && stateRef.current.morseSequence.length > 0) {
-            if (now - stateRef.current.lastBlinkEnd > 1000) {
-                if (MORSE_DICT[stateRef.current.morseSequence]) {
-                    handleKeyPress(MORSE_DICT[stateRef.current.morseSequence]);
-                } else {
-                    speakText("Invalid Morse");
-                }
-                setMorseSequence('');
+            } else {
+                processMorseDuration(duration);
             }
-        }
+          } else if (stateRef.current.inputMode === 'morse' && stateRef.current.morseSequence.length > 0) {
+              if (now - stateRef.current.lastBlinkEnd > 1000) {
+                  if (MORSE_DICT[stateRef.current.morseSequence]) {
+                      handleKeyPress(MORSE_DICT[stateRef.current.morseSequence]);
+                  } else {
+                      speakText("Invalid Morse");
+                  }
+                  setMorseSequence('');
+              }
+          }
 
-        // ONE EYE BLINK (WINK) TO CLEAR
-        const isWinkR = earR < BLINK_THRESHOLD && earL > (BLINK_THRESHOLD * 2);
-        const isWinkL = earL < BLINK_THRESHOLD && earR > (BLINK_THRESHOLD * 2);
-        
-        if ((isWinkR || isWinkL) && now - stateRef.current.lastWinkTime > 1500) {
-            stateRef.current.lastWinkTime = now;
-            handleKeyPress('CLEAR');
-            setBlinkStatus('clear');
-            setTimeout(() => setBlinkStatus('idle'), 1000);
+          // ONE EYE BLINK (WINK) TO CLEAR
+          const isWinkR = earR < BLINK_THRESHOLD && earL > (BLINK_THRESHOLD * 2);
+          const isWinkL = earL < BLINK_THRESHOLD && earR > (BLINK_THRESHOLD * 2);
+          
+          if ((isWinkR || isWinkL) && now - stateRef.current.lastWinkTime > 1500) {
+              stateRef.current.lastWinkTime = now;
+              handleKeyPress('CLEAR');
+              setBlinkStatus('clear');
+              setTimeout(() => setBlinkStatus('idle'), 1000);
+          }
         }
-      }
 
       // PRECISION GAZE CALCULATION (Using Dual Eye Average)
       const sW = landmarks[133].x - landmarks[33].x;
