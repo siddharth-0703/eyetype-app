@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
-const Camera = (window as any).Camera;
-const FaceMesh = (window as any).FaceMesh;
-const drawConnectors = (window as any).drawConnectors;
-const FACEMESH_RIGHT_EYE = (window as any).FACEMESH_RIGHT_EYE;
-const FACEMESH_LEFT_EYE = (window as any).FACEMESH_LEFT_EYE;
-const FACEMESH_TESSELATION = (window as any).FACEMESH_TESSELATION;
-const FACEMESH_FACE_OVAL = (window as any).FACEMESH_FACE_OVAL;
+// No top-level globals here to avoid race conditions with CDN scripts
 
 const DWELL_TIME_MS = 2000;
 const HEAVY_DWELL_MS = 4000;
@@ -207,17 +201,26 @@ function App() {
     fetchPredictions('');
   };
 
-  const startEngine = () => {
+  const startEngine = async () => {
     setHasStarted(true);
 
+    // FORCE CAMERA PERMISSION PROMPT (The Kickstarter)
+    try {
+        await navigator.mediaDevices.getUserMedia({ video: true });
+    } catch(err) {
+        alert("Camera Access Denied. Please click the Camera icon in your browser address bar and select 'Allow' to use EyeType.");
+        setHasStarted(false);
+        return;
+    }
+
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-      (DeviceOrientationEvent as any).requestPermission()
-        .then((permissionState: string) => {
-          if (permissionState === 'granted') {
-            window.addEventListener('deviceorientation', handleGyro, true);
-            window.addEventListener('devicemotion', handleMotion, true);
-          }
-        }).catch(console.error);
+      try {
+        const permissionState = await (DeviceOrientationEvent as any).requestPermission();
+        if (permissionState === 'granted') {
+          window.addEventListener('deviceorientation', handleGyro, true);
+          window.addEventListener('devicemotion', handleMotion, true);
+        }
+      } catch(e) { console.error(e); }
     } else {
       window.addEventListener('deviceorientation', handleGyro, true);
       window.addEventListener('devicemotion', handleMotion, true);
@@ -323,9 +326,20 @@ function App() {
 
   const initCamera = () => {
     if (!videoRef.current || !canvasRef.current) return;
+    
+    // Safety check for MediaPipe globals
+    const FaceMesh = (window as any).FaceMesh;
+    const Camera = (window as any).Camera;
+    if (!FaceMesh || !Camera) {
+        alert("Eye Tracking AI still loading... Please wait 5 seconds and try again.");
+        setHasStarted(false);
+        return;
+    }
+
     const faceMesh = new FaceMesh({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
     faceMesh.onResults(onResults);
+
      setCameraStatus('Initializing AI...');
      const camera = new Camera(videoRef.current, {
        onFrame: async () => { 
@@ -358,13 +372,21 @@ function App() {
     ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
     ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
+    const drawConnectors = (window as any).drawConnectors;
+    const FACEMESH_TESSELATION = (window as any).FACEMESH_TESSELATION;
+    const FACEMESH_FACE_OVAL = (window as any).FACEMESH_FACE_OVAL;
+    const FACEMESH_RIGHT_EYE = (window as any).FACEMESH_RIGHT_EYE;
+    const FACEMESH_LEFT_EYE = (window as any).FACEMESH_LEFT_EYE;
+
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const landmarks = results.multiFaceLandmarks[0];
       // DRAW FULL DIGITAL FACE MESH
-      drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, { color: 'rgba(56, 189, 248, 0.1)', lineWidth: 0.5 });
-      drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, { color: 'rgba(56, 189, 248, 0.4)', lineWidth: 1 });
-      drawConnectors(ctx, landmarks, FACEMESH_RIGHT_EYE, { color: 'rgba(56, 189, 248, 0.6)', lineWidth: 1 });
-      drawConnectors(ctx, landmarks, FACEMESH_LEFT_EYE, { color: 'rgba(56, 189, 248, 0.6)', lineWidth: 1 });
+      if (drawConnectors) {
+        drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, { color: 'rgba(56, 189, 248, 0.1)', lineWidth: 0.5 });
+        drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, { color: 'rgba(56, 189, 248, 0.4)', lineWidth: 1 });
+        drawConnectors(ctx, landmarks, FACEMESH_RIGHT_EYE, { color: 'rgba(56, 189, 248, 0.6)', lineWidth: 1 });
+        drawConnectors(ctx, landmarks, FACEMESH_LEFT_EYE, { color: 'rgba(56, 189, 248, 0.6)', lineWidth: 1 });
+      }
       
       // DRAW IRIS HEXAGON DOTS (The requested pattern)
       const irisPoints = [468, 469, 470, 471, 472, 473, 474, 475, 476, 477];
