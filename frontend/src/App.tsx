@@ -6,8 +6,6 @@ const FaceMesh = (window as any).FaceMesh;
 const drawConnectors = (window as any).drawConnectors;
 const FACEMESH_RIGHT_EYE = (window as any).FACEMESH_RIGHT_EYE;
 const FACEMESH_LEFT_EYE = (window as any).FACEMESH_LEFT_EYE;
-const FACEMESH_RIGHT_IRIS = (window as any).FACEMESH_RIGHT_IRIS;
-const FACEMESH_LEFT_IRIS = (window as any).FACEMESH_LEFT_IRIS;
 const FACEMESH_TESSELATION = (window as any).FACEMESH_TESSELATION;
 const FACEMESH_FACE_OVAL = (window as any).FACEMESH_FACE_OVAL;
 
