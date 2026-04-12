@@ -112,8 +112,6 @@ class ChatQuery(BaseModel):
 @app.post("/chat_ai")
 def ask_ai(query: ChatQuery):
     """Sends the user's typed sentence to Groq for extremely fast processing."""
-    if query.token == "GUEST":
-        return {"response": "AI Chat is a Premium feature."}
     
     if not GROQ_CLIENT:
         return {"response": "Groq SDK missing on backend. Run pip install groq."}

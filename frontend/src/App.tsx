@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const Camera = (window as any).Camera;
 const FaceMesh = (window as any).FaceMesh;
@@ -52,12 +47,8 @@ function App() {
   const cursorRef = useRef<HTMLDivElement>(null);
 
   const [hasStarted, setHasStarted] = useState(false);
-  const [tier, setTier] = useState("GUEST");
-  const [token, setToken] = useState("GUEST");
-  
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginMsg, setLoginMsg] = useState('');
+  const [tier] = useState("REGISTERED");
+  const [token] = useState("REGISTERED");
 
   const [typedText, setTypedText] = useState('');
   const [predictions, setPredictions] = useState<string[]>([]);
@@ -212,56 +203,6 @@ function App() {
     speakText(word); 
     fetchPredictions('');
   };
-
-  const attemptLogin = async () => {
-    try {
-      const un = username.trim() || 'GUEST';
-      const pw = password.trim() || '';
-      
-      const res = await axios.post(`${API_BASE}/login`, { username: un, password: pw });
-      setTier(res.data.tier);
-      setToken(res.data.token);
-      startEngine();
-    } catch(err: any) {
-      setLoginMsg(err.response?.data?.detail || "Login Failed. Server Offline?");
-    }
-  }
-
-  const handleOAuthLogin = async (provider: 'google' | 'azure') => {
-      if (!supabase) {
-          setLoginMsg("Supabase Keys missing in Vercel!");
-          return;
-      }
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-          provider: provider,
-          options: {
-             redirectTo: window.location.origin
-          }
-      });
-      
-      if (error) setLoginMsg(error.message);
-  }
-
-  useEffect(() => {
-     if(supabase) {
-         supabase.auth.getSession().then(({ data: { session } }) => {
-             if(session) {
-                 setTier("REGISTERED");
-                 setToken(session.access_token);
-                 startEngine();
-             }
-         });
-         
-         supabase.auth.onAuthStateChange((_event, session) => {
-             if(session) {
-                 setTier("REGISTERED");
-                 setToken(session.access_token);
-                 startEngine();
-             }
-         });
-     }
-  }, []);
 
   const startEngine = () => {
     setHasStarted(true);
@@ -534,21 +475,27 @@ function App() {
 
   if (!hasStarted) {
     return (
-      <div style={{height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', color: '#fff'}}>
-        <h1 style={{fontSize: '2rem', marginBottom: '1rem'}}>EyeType Portal</h1>
-        
-        <div className="glass-panel" style={{padding: '30px', display: 'flex', flexDirection: 'column', gap: '15px', width: '300px'}}>
-            <input type="text" placeholder="Username (Leave blank for Guest)" value={username} onChange={e => setUsername(e.target.value)} style={{padding: '10px', borderRadius: '8px', border: 'none'}} />
-            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={{padding: '10px', borderRadius: '8px', border: 'none'}} />
-            <button onClick={attemptLogin} style={{padding: '12px', background: '#38bdf8', border: 'none', borderRadius: '8px', color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>LOGIN WITH PASSWORD</button>
-            
-            <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
-               <button onClick={() => handleOAuthLogin('google')} style={{flex: 1, padding: '10px', background: '#DB4437', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'}}>Google</button>
-               <button onClick={() => handleOAuthLogin('azure')} style={{flex: 1, padding: '10px', background: '#00A4EF', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'}}>Microsoft</button>
-            </div>
-            
-            <p style={{color: '#ef4444', fontSize: '0.8rem', textAlign: 'center'}}>{loginMsg}</p>
+      <div className="login-screen" style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column'}}>
+        <div style={{background: 'rgba(255,255,255,0.1)', padding: '20px', borderRadius: '15px', color: '#fff', marginBottom: '20px', maxWidth: '300px', textAlign: 'center'}}>
+           <h3>How it works</h3>
+           <p style={{fontSize: '0.9rem', marginTop: '10px'}}>Gaze tracking combined with dynamic AI text prediction. Available natively on Android.</p>
         </div>
+
+        <h1 style={{fontSize: '3rem', marginBottom: '2rem'}}>EyeType Portal</h1>
+        
+        <button 
+           onClick={startEngine} 
+           style={{
+               padding: '20px 40px', fontSize: '1.5rem', background: '#38bdf8', 
+               border: 'none', borderRadius: '50px', color: '#fff', 
+               fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 8px 30px rgba(56, 189, 248, 0.5)',
+               transition: 'transform 0.2s'
+           }}
+           onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
+           onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+           START SENSORS & AI
+        </button>
       </div>
     )
   }
