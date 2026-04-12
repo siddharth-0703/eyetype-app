@@ -389,18 +389,47 @@ function App() {
         drawConnectors(ctx, landmarks, FACEMESH_LEFT_EYE, { color: 'rgba(56, 189, 248, 0.6)', lineWidth: 1 });
       }
       
-      // DRAW IRIS HEXAGON DOTS (The requested pattern)
-      const irisPoints = [468, 469, 470, 471, 472, 473, 474, 475, 476, 477];
-      irisPoints.forEach(idx => {
-          const pt = landmarks[idx];
+      // DRAW OCTAGON PATTERN ON EACH EYE + NOSE TIP ANCHOR
+      const drawOctagon = (cx: number, cy: number, radius: number, color: string) => {
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * 2 * Math.PI - Math.PI / 8;
+          const px = cx + radius * Math.cos(angle);
+          const py = cy + radius * Math.sin(angle);
           ctx.beginPath();
-          ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 2, 0, 2 * Math.PI);
-          ctx.fillStyle = '#10b981';
+          ctx.arc(px, py, 1.5, 0, 2 * Math.PI);
+          ctx.fillStyle = color;
           ctx.fill();
-          ctx.strokeStyle = '#fff';
+          ctx.strokeStyle = 'rgba(255,255,255,0.8)';
           ctx.lineWidth = 0.5;
           ctx.stroke();
-      });
+        }
+        // Center dot
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      };
+
+      // Right iris octagon (center: landmark 468)
+      const rIris = landmarks[468];
+      const rCorner = landmarks[33];
+      const rCorner2 = landmarks[133];
+      const irisRadius = Math.abs(rCorner.x - rCorner2.x) * canvas.width * 0.04;
+      drawOctagon(rIris.x * canvas.width, rIris.y * canvas.height, irisRadius, '#10b981');
+
+      // Left iris octagon (center: landmark 473)
+      const lIris = landmarks[473];
+      drawOctagon(lIris.x * canvas.width, lIris.y * canvas.height, irisRadius, '#10b981');
+
+      // Nose tip anchor point (landmark 4) - improves depth accuracy
+      const nose = landmarks[4];
+      ctx.beginPath();
+      ctx.arc(nose.x * canvas.width, nose.y * canvas.height, 3, 0, 2 * Math.PI);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
       const earR = Math.abs(landmarks[159].y - landmarks[145].y) / Math.abs(landmarks[33].x - landmarks[133].x);
       const earL = Math.abs(landmarks[386].y - landmarks[374].y) / Math.abs(landmarks[362].x - landmarks[263].x);
