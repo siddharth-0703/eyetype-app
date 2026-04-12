@@ -73,7 +73,8 @@ function App() {
     predictions: [] as string[],
     tiltFired: false,
     shakeCooldown: 0,
-    touchStart: 0
+    touchStart: 0,
+    lastWinkTime: 0
   });
 
   useEffect(() => {
@@ -432,7 +433,6 @@ function App() {
               }
           } else {
               processMorseDuration(duration);
-          }
         } else if (stateRef.current.inputMode === 'morse' && stateRef.current.morseSequence.length > 0) {
             if (now - stateRef.current.lastBlinkEnd > 1000) {
                 if (MORSE_DICT[stateRef.current.morseSequence]) {
@@ -442,6 +442,17 @@ function App() {
                 }
                 setMorseSequence('');
             }
+        }
+
+        // ONE EYE BLINK (WINK) TO CLEAR
+        const isWinkR = earR < BLINK_THRESHOLD && earL > (BLINK_THRESHOLD * 2);
+        const isWinkL = earL < BLINK_THRESHOLD && earR > (BLINK_THRESHOLD * 2);
+        
+        if ((isWinkR || isWinkL) && now - stateRef.current.lastWinkTime > 1500) {
+            stateRef.current.lastWinkTime = now;
+            handleKeyPress('CLEAR');
+            setBlinkStatus('clear');
+            setTimeout(() => setBlinkStatus('idle'), 1000);
         }
       }
 
