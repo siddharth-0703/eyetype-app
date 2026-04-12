@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const Camera = (window as any).Camera;
 const FaceMesh = (window as any).FaceMesh;
@@ -221,6 +226,42 @@ function App() {
       setLoginMsg(err.response?.data?.detail || "Login Failed. Server Offline?");
     }
   }
+
+  const handleOAuthLogin = async (provider: 'google' | 'azure') => {
+      if (!supabase) {
+          setLoginMsg("Supabase Keys missing in Vercel!");
+          return;
+      }
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+          provider: provider,
+          options: {
+             redirectTo: window.location.origin
+          }
+      });
+      
+      if (error) setLoginMsg(error.message);
+  }
+
+  useEffect(() => {
+     if(supabase) {
+         supabase.auth.getSession().then(({ data: { session } }) => {
+             if(session) {
+                 setTier("REGISTERED");
+                 setToken(session.access_token);
+                 startEngine();
+             }
+         });
+         
+         supabase.auth.onAuthStateChange((_event, session) => {
+             if(session) {
+                 setTier("REGISTERED");
+                 setToken(session.access_token);
+                 startEngine();
+             }
+         });
+     }
+  }, []);
 
   const startEngine = () => {
     setHasStarted(true);
@@ -499,7 +540,13 @@ function App() {
         <div className="glass-panel" style={{padding: '30px', display: 'flex', flexDirection: 'column', gap: '15px', width: '300px'}}>
             <input type="text" placeholder="Username (Leave blank for Guest)" value={username} onChange={e => setUsername(e.target.value)} style={{padding: '10px', borderRadius: '8px', border: 'none'}} />
             <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={{padding: '10px', borderRadius: '8px', border: 'none'}} />
-            <button onClick={attemptLogin} style={{padding: '12px', background: '#38bdf8', border: 'none', borderRadius: '8px', color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>LOGIN & START SENSORS</button>
+            <button onClick={attemptLogin} style={{padding: '12px', background: '#38bdf8', border: 'none', borderRadius: '8px', color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>LOGIN WITH PASSWORD</button>
+            
+            <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
+               <button onClick={() => handleOAuthLogin('google')} style={{flex: 1, padding: '10px', background: '#DB4437', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'}}>Google</button>
+               <button onClick={() => handleOAuthLogin('azure')} style={{flex: 1, padding: '10px', background: '#00A4EF', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'}}>Microsoft</button>
+            </div>
+            
             <p style={{color: '#ef4444', fontSize: '0.8rem', textAlign: 'center'}}>{loginMsg}</p>
         </div>
       </div>
