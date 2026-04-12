@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera } from '@mediapipe/camera_utils';
-import { FaceMesh } from '@mediapipe/face_mesh';
-import type { Results } from '@mediapipe/face_mesh';
-import { drawConnectors } from '@mediapipe/drawing_utils';
-import { FACEMESH_RIGHT_EYE, FACEMESH_RIGHT_IRIS } from '@mediapipe/face_mesh';
 import axios from 'axios';
+
+const Camera = (window as any).Camera;
+const FaceMesh = (window as any).FaceMesh;
+const drawConnectors = (window as any).drawConnectors;
+const FACEMESH_RIGHT_EYE = (window as any).FACEMESH_RIGHT_EYE;
+const FACEMESH_RIGHT_IRIS = (window as any).FACEMESH_RIGHT_IRIS;
 
 const DWELL_TIME_MS = 2000;
 const HEAVY_DWELL_MS = 4000;
@@ -337,7 +338,7 @@ function App() {
 
   const initCamera = () => {
     if (!videoRef.current || !canvasRef.current) return;
-    const faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+    const faceMesh = new FaceMesh({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
     faceMesh.onResults(onResults);
 
@@ -349,7 +350,7 @@ function App() {
     fetchPredictions('');
   };
 
-  const onResults = (results: Results) => {
+  const onResults = (results: any) => {
     const canvas = canvasRef.current;
     if (!canvas) return; const ctx = canvas.getContext('2d'); if (!ctx) return;
 
