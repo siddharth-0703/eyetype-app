@@ -26,36 +26,50 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 DB_FILE = "eyetype_ai.db"
 
 def run_sql(query, params=(), fetch_all=False, fetch_one=False):
-    if DATABASE_URL:
-        import psycopg2
-        conn = psycopg2.connect(DATABASE_URL)
-        query = query.replace("?", "%s")
-    else:
-        conn = sqlite3.connect(DB_FILE)
+    # Ensure Supabase gets SSL if using cloud URL
+    uri = DATABASE_URL
+    if uri and "sslmode=" not in uri:
+        uri += ("&" if "?" in uri else "?") + "sslmode=require"
+
+    try:
+        if uri:
+            import psycopg2
+            conn = psycopg2.connect(uri)
+            query = query.replace("?", "%s")
+        else:
+            conn = sqlite3.connect(DB_FILE)
+            
+        cursor = conn.cursor()
+        cursor.execute(query, params)
         
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    
-    result = None
-    if fetch_all:
-        result = cursor.fetchall()
-    elif fetch_one:
-        result = cursor.fetchone()
-    else:
-        conn.commit()
-        
-    conn.close()
-    return result
+        result = None
+        if fetch_all:
+            result = cursor.fetchall()
+        elif fetch_one:
+            result = cursor.fetchone()
+        else:
+            conn.commit()
+            
+        conn.close()
+        return result
+    except Exception as e:
+        print(f"--- DATABASE ERROR ---")
+        print(f"Query: {query}")
+        print(f"Error: {str(e)}")
+        print(f"----------------------")
+        return None
 
 def init_db():
+    print("Initialising Database...")
     run_sql('''
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             password_hash TEXT
         )
     ''')
-
-    if run_sql("SELECT COUNT(*) FROM users", fetch_one=True)[0] == 0:
+    
+    user_count = run_sql("SELECT COUNT(*) FROM users", fetch_one=True)
+    if user_count and user_count[0] == 0:
         run_sql("INSERT INTO users (username, password_hash) VALUES (?, ?)", 
                 ("admin", hashlib.sha256("password".encode()).hexdigest()))
 
@@ -65,8 +79,11 @@ def init_db():
             PRIMARY KEY (prev_word, current_word)
         )
     ''')
+    print("Database Ready.")
 
-init_db()
+@app.on_event("startup")
+async def startup_event():
+    init_db()
 
 # --- Auth Models ---
 class UserLogin(BaseModel):
