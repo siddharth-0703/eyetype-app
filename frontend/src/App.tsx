@@ -8,6 +8,8 @@ const FACEMESH_RIGHT_EYE = (window as any).FACEMESH_RIGHT_EYE;
 const FACEMESH_LEFT_EYE = (window as any).FACEMESH_LEFT_EYE;
 const FACEMESH_RIGHT_IRIS = (window as any).FACEMESH_RIGHT_IRIS;
 const FACEMESH_LEFT_IRIS = (window as any).FACEMESH_LEFT_IRIS;
+const FACEMESH_TESSELATION = (window as any).FACEMESH_TESSELATION;
+const FACEMESH_FACE_OVAL = (window as any).FACEMESH_FACE_OVAL;
 
 const DWELL_TIME_MS = 2000;
 const HEAVY_DWELL_MS = 4000;
@@ -344,8 +346,11 @@ function App() {
 
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const landmarks = results.multiFaceLandmarks[0];
-      drawConnectors(ctx, landmarks, FACEMESH_RIGHT_EYE, { color: 'rgba(56, 189, 248, 0.4)', lineWidth: 1 });
-      drawConnectors(ctx, landmarks, FACEMESH_LEFT_EYE, { color: 'rgba(56, 189, 248, 0.4)', lineWidth: 1 });
+      // DRAW FULL DIGITAL FACE MESH
+      drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, { color: 'rgba(56, 189, 248, 0.1)', lineWidth: 0.5 });
+      drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, { color: 'rgba(56, 189, 248, 0.4)', lineWidth: 1 });
+      drawConnectors(ctx, landmarks, FACEMESH_RIGHT_EYE, { color: 'rgba(56, 189, 248, 0.6)', lineWidth: 1 });
+      drawConnectors(ctx, landmarks, FACEMESH_LEFT_EYE, { color: 'rgba(56, 189, 248, 0.6)', lineWidth: 1 });
       
       // DRAW IRIS HEXAGON DOTS (The requested pattern)
       const irisPoints = [468, 469, 470, 471, 472, 473, 474, 475, 476, 477];
@@ -553,7 +558,7 @@ function App() {
       </div>
 
       <div className="camera-container glass-panel" style={{margin: '0 10px'}}>
-        <video ref={videoRef} className="input_video" style={{ display: 'none' }} />
+        <video ref={videoRef} className="input_video" style={{ display: 'none' }} playsInline muted />
         <canvas ref={canvasRef} className="output_canvas" width="640" height="480" />
       </div>
 
