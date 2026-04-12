@@ -55,8 +55,29 @@ body {
   height: 100%;
   border-radius: 20px;
   border: 2px solid var(--accent-color);
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+  box-shadow: 0 0 30px rgba(56, 189, 248, 0.4), inset 0 0 10px rgba(56, 189, 248, 0.2);
   object-fit: cover;
+  background: #000;
+  position: relative;
+}
+
+.camera-container::after {
+  content: "LIVE TRACKING ACTIVE";
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  font-family: monospace;
+  font-size: 0.6rem;
+  color: var(--accent-color);
+  letter-spacing: 1px;
+  opacity: 0.8;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
 }
 
 .ui-container {
@@ -218,15 +239,28 @@ body {
 
 #gaze-cursor {
   position: absolute;
-  width: 25px;
-  height: 25px;
-  background: #10b981;
-  border: 3px solid #fff;
+  width: 20px;
+  height: 20px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 2px solid #10b981;
   border-radius: 50%;
   pointer-events: none;
   z-index: 1000;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.05s linear;
+}
+
+#gaze-cursor::after {
+  content: '';
+  width: 4px;
+  height: 4px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 5px white;
 }
 
 /* =========================================

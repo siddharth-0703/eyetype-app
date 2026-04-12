@@ -5,7 +5,9 @@ const Camera = (window as any).Camera;
 const FaceMesh = (window as any).FaceMesh;
 const drawConnectors = (window as any).drawConnectors;
 const FACEMESH_RIGHT_EYE = (window as any).FACEMESH_RIGHT_EYE;
+const FACEMESH_LEFT_EYE = (window as any).FACEMESH_LEFT_EYE;
 const FACEMESH_RIGHT_IRIS = (window as any).FACEMESH_RIGHT_IRIS;
+const FACEMESH_LEFT_IRIS = (window as any).FACEMESH_LEFT_IRIS;
 
 const DWELL_TIME_MS = 2000;
 const HEAVY_DWELL_MS = 4000;
@@ -342,11 +344,25 @@ function App() {
 
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const landmarks = results.multiFaceLandmarks[0];
-      drawConnectors(ctx, landmarks, FACEMESH_RIGHT_EYE, { color: 'rgba(255,255,255,0.5)', lineWidth: 1 });
-      drawConnectors(ctx, landmarks, FACEMESH_RIGHT_IRIS, { color: 'green', lineWidth: 2 });
+      drawConnectors(ctx, landmarks, FACEMESH_RIGHT_EYE, { color: 'rgba(56, 189, 248, 0.4)', lineWidth: 1 });
+      drawConnectors(ctx, landmarks, FACEMESH_LEFT_EYE, { color: 'rgba(56, 189, 248, 0.4)', lineWidth: 1 });
+      
+      // DRAW IRIS HEXAGON DOTS (The requested pattern)
+      const irisPoints = [468, 469, 470, 471, 472, 473, 474, 475, 476, 477];
+      irisPoints.forEach(idx => {
+          const pt = landmarks[idx];
+          ctx.beginPath();
+          ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 2, 0, 2 * Math.PI);
+          ctx.fillStyle = '#10b981';
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+      });
 
-      const ear = Math.abs(landmarks[159].y - landmarks[145].y) / Math.abs(landmarks[33].x - landmarks[133].x);
-      const isBlinking = ear < BLINK_THRESHOLD;
+      const earR = Math.abs(landmarks[159].y - landmarks[145].y) / Math.abs(landmarks[33].x - landmarks[133].x);
+      const earL = Math.abs(landmarks[386].y - landmarks[374].y) / Math.abs(landmarks[362].x - landmarks[263].x);
+      const isBlinking = (earR + earL) / 2 < BLINK_THRESHOLD;
       const now = Date.now();
 
       if (isBlinking) {
@@ -388,14 +404,21 @@ function App() {
         }
       }
 
+      // PRECISION GAZE CALCULATION (Using Dual Eye Average)
       const sW = landmarks[133].x - landmarks[33].x;
       const sH = landmarks[145].y - landmarks[159].y;
+      
       if (sW > 0 && sH > 0) {
-        const normX = 1.0 - ((landmarks[468].x - landmarks[33].x) / sW);
-        const normY = (landmarks[468].y - landmarks[159].y) / sH;
+        // Average the position of both irises for rock-solid stability
+        const irisX = (landmarks[468].x + landmarks[473].x) / 2;
+        const irisY = (landmarks[468].y + landmarks[473].y) / 2;
 
-        const mX = Math.max(0, Math.min(1, (normX - 0.35) / 0.3));
-        const mY = Math.max(0, Math.min(1, (normY - 0.35) / 0.3));
+        const normX = 1.0 - ((irisX - landmarks[33].x) / sW);
+        const normY = (irisY - landmarks[159].y) / sH;
+
+        // Increased sensitivity range (0.4 / 0.2 instead of 0.35 / 0.3)
+        const mX = Math.max(0, Math.min(1, (normX - 0.4) / 0.2));
+        const mY = Math.max(0, Math.min(1, (normY - 0.4) / 0.2));
 
         const targetX = (mX * window.innerWidth) + stateRef.current.gyroOffsetX;
         const targetY = (mY * window.innerHeight) + stateRef.current.gyroOffsetY;
