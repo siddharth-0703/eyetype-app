@@ -58,6 +58,7 @@ function App() {
   const [predictions, setPredictions] = useState<string[]>([]);
   const [hoverBtn, setHoverBtn] = useState<HTMLElement | null>(null);
   const [theme, setTheme] = useState<keyof typeof THEMES>('Dark');
+  const [cameraStatus, setCameraStatus] = useState('Off');
 
   const [inputMode, setInputMode] = useState<'standard' | 'morse'>('standard');
   const [morseSequence, setMorseSequence] = useState<string>('');
@@ -327,20 +328,35 @@ function App() {
     const faceMesh = new FaceMesh({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
     faceMesh.onResults(onResults);
-
-    const camera = new Camera(videoRef.current, {
-      onFrame: async () => { await faceMesh.send({ image: videoRef.current! }); },
-      width: 640, height: 480
-    });
-    camera.start();
-    fetchPredictions('');
+     setCameraStatus('Initializing AI...');
+     const camera = new Camera(videoRef.current, {
+       onFrame: async () => { 
+           try {
+               await faceMesh.send({ image: videoRef.current! }); 
+           } catch(e) { console.error("FaceMesh Send Error", e); }
+       },
+       width: 640, height: 480
+     });
+     camera.start();
+     fetchPredictions('');
   };
 
   const onResults = (results: any) => {
     const canvas = canvasRef.current;
     if (!canvas) return; const ctx = canvas.getContext('2d'); if (!ctx) return;
 
-    ctx.save(); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (!results || !results.image) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        return;
+    }
+
+    if (cameraStatus !== 'Live') setCameraStatus('Live');
+
     ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
     ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
@@ -557,9 +573,14 @@ function App() {
         </select>
       </div>
 
-      <div className="camera-container glass-panel" style={{margin: '0 10px'}}>
-        <video ref={videoRef} className="input_video" style={{ display: 'none' }} playsInline muted />
+      <div className="camera-container glass-panel" style={{margin: '0 10px', position: 'relative'}}>
+        <video ref={videoRef} className="input_video" playsInline muted />
         <canvas ref={canvasRef} className="output_canvas" width="640" height="480" />
+        {cameraStatus !== 'Live' && (
+            <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--accent-color)', fontWeight: 'bold', textShadow: '0 0 10px #000'}}>
+               📡 {cameraStatus}
+            </div>
+        )}
       </div>
 
       <div className="ui-container glass-panel" style={{margin: '10px', height: '60vh'}}>

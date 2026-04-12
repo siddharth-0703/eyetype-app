@@ -49,6 +49,14 @@ body {
   transition: all 0.3s ease;
 }
 
+.input_video {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .output_canvas {
   width: 100%;
   max-width: 400px;
