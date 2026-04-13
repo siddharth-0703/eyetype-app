@@ -81,8 +81,14 @@ function App() {
     shakeCooldown: 0,
     touchStart: 0,
     lastWinkTime: 0,
-    bothBlinkStart: 0,         // Tracks when both-eye blink started (for 4s reset)
-    historyResetFired: false   // Prevents the reset from firing repeatedly
+    bothBlinkStart: 0,
+    historyResetFired: false,
+    // ── Keyboard-specific gaze state (normal mode, fully independent) ───────────────
+    keySmX: 0,                            // Smoothed keyboard cursor X (px within keyboard area)
+    keySmY: 0,                            // Smoothed keyboard cursor Y
+    keyHoverBtn: null as HTMLElement | null, // Which keyboard key is currently targeted
+    keyHoverStart: 0,                     // When the current key hover started
+    hasKeyWarned: false,                  // BACKSPACE warning spoken flag
   });
 
   useEffect(() => {
@@ -600,109 +606,192 @@ function App() {
         }
 
         checkIntersections();
+
+        // High-sensitivity eye tracking for keyboard (normal mode only)
+        if (stateRef.current.inputMode === 'standard') updateKeyboardGaze(landmarks);
       }
     }
     ctx.restore();
   };
 
-  // ── KEYBOARD CURSOR: positions & drives dwell progress ring ────────────────
-  const updateKeyboardCursor = (hitEl: HTMLElement | null) => {
+  // ── HIGH-SENSITIVITY KEYBOARD GAZE ENGINE (Normal Mode Only) ──────────────
+  // Uses 5 iris ring points per eye for sub-pixel accuracy.
+  // Maps the narrow iris travel range directly to keyboard coordinates
+  // so even <1cm screen movements resolve to different keys.
+  const updateKeyboardGaze = (landmarks: any[]) => {
     const keyboardArea = document.getElementById('keyboard-area');
     if (!keyboardArea || !keyboardCursorRef.current || !keyboardCursorCircleRef.current) return;
 
+    // === STEP 1: MULTI-POINT IRIS CENTROID (5 pts each eye) ===
+    // MediaPipe refine landmarks: 468-472 = right iris ring, 473-477 = left iris ring
+    const rIrisX = (landmarks[468].x + landmarks[469].x + landmarks[470].x + landmarks[471].x + landmarks[472].x) / 5;
+    const rIrisY = (landmarks[468].y + landmarks[469].y + landmarks[470].y + landmarks[471].y + landmarks[472].y) / 5;
+    const lIrisX = (landmarks[473].x + landmarks[474].x + landmarks[475].x + landmarks[476].x + landmarks[477].x) / 5;
+    const lIrisY = (landmarks[473].y + landmarks[474].y + landmarks[475].y + landmarks[476].y + landmarks[477].y) / 5;
+
+    // === STEP 2: NORMALIZED IRIS POSITION WITHIN EACH EYE ===
+    // Horizontal: iris x relative to eye corner span
+    // Right eye corners: 33 (temporal/outer), 133 (nasal/inner)
+    // Left eye corners: 263 (temporal/outer), 362 (nasal/inner)
+    const rEyeLeft  = Math.min(landmarks[33].x,  landmarks[133].x);
+    const rEyeRight = Math.max(landmarks[33].x,  landmarks[133].x);
+    const lEyeLeft  = Math.min(landmarks[263].x, landmarks[362].x);
+    const lEyeRight = Math.max(landmarks[263].x, landmarks[362].x);
+    const rEyeW = (rEyeRight - rEyeLeft) || 0.001;
+    const lEyeW = (lEyeRight - lEyeLeft) || 0.001;
+
+    const rNormX = (rIrisX - rEyeLeft) / rEyeW; // 0=left corner, 1=right corner (image space)
+    const lNormX = (lIrisX - lEyeLeft) / lEyeW;
+    // Mirror x (canvas is flipped) and average both eyes
+    const rawNormX = 1.0 - (rNormX + lNormX) / 2;
+
+    // Vertical: iris Y relative to eyelid center
+    // Upper eyelid: 159 (right), 386 (left) | Lower eyelid: 145 (right), 374 (left)
+    const rEyeMidY = (landmarks[159].y + landmarks[145].y) / 2;
+    const lEyeMidY = (landmarks[386].y + landmarks[374].y) / 2;
+    const rEyeH = Math.abs(landmarks[145].y - landmarks[159].y) || 0.001;
+    const lEyeH = Math.abs(landmarks[374].y - landmarks[386].y) || 0.001;
+    // Signed offset from center (-=up, +=down), scaled by eye height
+    const rNormY = (rIrisY - rEyeMidY) / (rEyeH * 0.5);
+    const lNormY = (lIrisY - lEyeMidY) / (lEyeH * 0.5);
+    const rawNormY = (rNormY + lNormY) / 2; // approx -1..1
+
+    // === STEP 3: MAP NARROW IRIS RANGE → KEYBOARD [0,1] ===
+    // Iris horizontal travel for comfortable small-screen gaze: ~[0.28, 0.72]
+    // Iris vertical travel (eye-height units): ~±0.35 from center
+    const GAZE_X_MIN = 0.28, GAZE_X_MAX = 0.72;
+    const GAZE_Y_RANGE = 0.40; // ±0.40 covers full keyboard height
+    const mappedX = Math.max(0, Math.min(1, (rawNormX - GAZE_X_MIN) / (GAZE_X_MAX - GAZE_X_MIN)));
+    const mappedY = Math.max(0, Math.min(1, (rawNormY + GAZE_Y_RANGE) / (2 * GAZE_Y_RANGE)));
+
+    // === STEP 4: ADAPTIVE SMOOTHING ===
+    // More responsive for larger jumps (intentional key changes),
+    // more stable for small jitter (holding gaze)
     const kRect = keyboardArea.getBoundingClientRect();
-    const inKeyboard =
-      stateRef.current.smoothX >= kRect.left && stateRef.current.smoothX <= kRect.right &&
-      stateRef.current.smoothY >= kRect.top  && stateRef.current.smoothY <= kRect.bottom;
+    const targetKX = mappedX * kRect.width;
+    const targetKY = mappedY * kRect.height;
+    const dkx = targetKX - stateRef.current.keySmX;
+    const dky = targetKY - stateRef.current.keySmY;
+    const kdist = Math.sqrt(dkx * dkx + dky * dky);
+    const alpha = Math.min(0.22, Math.max(0.06, kdist / 280));
+    stateRef.current.keySmX += alpha * dkx;
+    stateRef.current.keySmY += alpha * dky;
 
-    if (!inKeyboard) {
-      keyboardCursorRef.current.style.display = 'none';
-      return;
-    }
-
-    // Position relative to keyboard-area container
-    const cx = stateRef.current.smoothX - kRect.left;
-    const cy = stateRef.current.smoothY - kRect.top;
+    // === STEP 5: UPDATE CURSOR POSITION ===
+    // CSS `display: none` is initial state; JS update always wins here
+    // because there is no React-controlled `display` prop on this element
     keyboardCursorRef.current.style.display = 'block';
-    keyboardCursorRef.current.style.left = `${cx}px`;
-    keyboardCursorRef.current.style.top  = `${cy}px`;
+    keyboardCursorRef.current.style.left = `${stateRef.current.keySmX}px`;
+    keyboardCursorRef.current.style.top  = `${stateRef.current.keySmY}px`;
 
-    if (hitEl) {
-      const letter   = hitEl.getAttribute('data-letter');
-      const reqDwell = letter === 'BACKSPACE' ? HEAVY_DWELL_MS : DWELL_TIME_MS;
-      const elapsed  = Date.now() - stateRef.current.hoverStart;
-      const prog     = Math.min(100, (elapsed / reqDwell) * 100);
-      const offset   = CIRCUMFERENCE - (prog / 100) * CIRCUMFERENCE;
-      keyboardCursorCircleRef.current.setAttribute('stroke-dashoffset', offset.toFixed(2));
+    // === STEP 6: HIT-TEST KEYBOARD BUTTONS ===
+    const absX = kRect.left + stateRef.current.keySmX;
+    const absY = kRect.top  + stateRef.current.keySmY;
+    let hitBtn: HTMLElement | null = null;
+    keyboardArea.querySelectorAll('.gaze-btn').forEach(b => {
+      const r = (b as HTMLElement).getBoundingClientRect();
+      if (absX >= r.left && absX <= r.right && absY >= r.top && absY <= r.bottom)
+        hitBtn = b as HTMLElement;
+    });
+    const keyHit = hitBtn as HTMLElement | null; // explicit cast for TS
 
-      // Fire key when circle completes
-      if (prog >= 100) {
-        if (letter) handleKeyPress(letter);
-        stateRef.current.hoverStart = Date.now();
+    // === STEP 7: DWELL TIMER → KEY FIRE ===
+    if (keyHit) {
+      if (stateRef.current.keyHoverBtn !== keyHit) {
+        // New key — reset dwell timer
+        if (stateRef.current.keyHoverBtn) {
+          stateRef.current.keyHoverBtn.style.setProperty('--dwell-progress', '0%');
+          stateRef.current.keyHoverBtn.style.backgroundColor = '';
+          stateRef.current.keyHoverBtn.style.color = '';
+        }
+        stateRef.current.keyHoverBtn  = keyHit;
+        stateRef.current.keyHoverStart = Date.now();
+        stateRef.current.hasKeyWarned  = false;
+        setHoverBtn(keyHit);
         keyboardCursorCircleRef.current.setAttribute('stroke-dashoffset', CIRCUMFERENCE.toFixed(2));
-        hitEl.style.setProperty('--dwell-progress', '0%');
-        hitEl.style.backgroundColor = '';
-        hitEl.style.color = '';
-        stateRef.current.hasWarned = false;
+      } else {
+        const letter   = keyHit.getAttribute('data-letter');
+        const reqDwell = letter === 'BACKSPACE' ? HEAVY_DWELL_MS : DWELL_TIME_MS;
+        const elapsed  = Date.now() - stateRef.current.keyHoverStart;
+        const prog     = Math.min(100, (elapsed / reqDwell) * 100);
+        const ringOff  = CIRCUMFERENCE - (prog / 100) * CIRCUMFERENCE;
+        keyHit.style.setProperty('--dwell-progress', `${prog}%`);
+        keyboardCursorCircleRef.current.setAttribute('stroke-dashoffset', ringOff.toFixed(2));
+
+        if (letter === 'BACKSPACE' && elapsed > WARNING_MS) {
+          keyHit.style.backgroundColor = 'rgba(239, 68, 68, 0.8)';
+          keyHit.style.color = 'white';
+          if (!stateRef.current.hasKeyWarned) { speakText('Warning, Deleting All'); stateRef.current.hasKeyWarned = true; }
+        }
+
+        if (prog >= 100) {
+          if (letter) handleKeyPress(letter);
+          stateRef.current.keyHoverStart = Date.now();
+          keyHit.style.setProperty('--dwell-progress', '0%');
+          keyHit.style.backgroundColor = '';
+          keyHit.style.color = '';
+          keyboardCursorCircleRef.current.setAttribute('stroke-dashoffset', CIRCUMFERENCE.toFixed(2));
+          stateRef.current.hasKeyWarned = false;
+        }
       }
     } else {
+      if (stateRef.current.keyHoverBtn) {
+        stateRef.current.keyHoverBtn.style.setProperty('--dwell-progress', '0%');
+        stateRef.current.keyHoverBtn.style.backgroundColor = '';
+        stateRef.current.keyHoverBtn.style.color = '';
+        stateRef.current.keyHoverBtn = null;
+        setHoverBtn(null);
+      }
       keyboardCursorCircleRef.current.setAttribute('stroke-dashoffset', CIRCUMFERENCE.toFixed(2));
     }
   };
 
+  // ── GLOBAL CURSOR HIT-TEST (suggestion bar, action buttons only) ─────────────
+  // Keyboard buttons are excluded here — handled entirely by updateKeyboardGaze
   const checkIntersections = () => {
     let hitEl: HTMLElement | null = null;
     document.querySelectorAll('.gaze-btn').forEach(b => {
+      // Skip keyboard area buttons — they are handled by updateKeyboardGaze
+      if ((b as HTMLElement).closest('#keyboard-area')) return;
       const rect = (b as HTMLElement).getBoundingClientRect();
       if (stateRef.current.smoothX >= rect.left && stateRef.current.smoothX <= rect.right &&
-          stateRef.current.smoothY >= rect.top  && stateRef.current.smoothY <= rect.bottom) {
+          stateRef.current.smoothY >= rect.top  && stateRef.current.smoothY <= rect.bottom)
         hitEl = b as HTMLElement;
-      }
     });
 
     const hit = hitEl as HTMLElement | null;
     if (hit) {
       if (stateRef.current.hoverBtn !== hit) {
-        if (stateRef.current.hoverBtn) {
+        if (stateRef.current.hoverBtn && !(stateRef.current.hoverBtn.closest('#keyboard-area'))) {
           stateRef.current.hoverBtn.style.setProperty('--dwell-progress', '0%');
           stateRef.current.hoverBtn.style.backgroundColor = '';
-          stateRef.current.hoverBtn.style.color = '';
         }
-        hit.style.backgroundColor = '';
         stateRef.current.hoverBtn = hit;
         setHoverBtn(hit);
         stateRef.current.hoverStart = Date.now();
-        stateRef.current.hasWarned = false;
       } else {
-        const letter   = hit.getAttribute('data-letter');
-        const reqDwell = letter === 'BACKSPACE' ? HEAVY_DWELL_MS : DWELL_TIME_MS;
-        const elapsed  = Date.now() - stateRef.current.hoverStart;
-        const prog     = Math.min(100, (elapsed / reqDwell) * 100);
-        // Keep the bottom-bar progress in sync (visual only on button)
+        const letter  = hit.getAttribute('data-letter');
+        const elapsed = Date.now() - stateRef.current.hoverStart;
+        const prog    = Math.min(100, (elapsed / DWELL_TIME_MS) * 100);
         hit.style.setProperty('--dwell-progress', `${prog}%`);
-
-        if (letter === 'BACKSPACE' && elapsed > WARNING_MS) {
-          hit.style.backgroundColor = 'rgba(239, 68, 68, 0.8)';
-          hit.style.color = 'white';
-          if (!stateRef.current.hasWarned) {
-            speakText('Warning, Deleting All');
-            stateRef.current.hasWarned = true;
+        if (prog >= 100) {
+          // Action bar / suggestion dwell — execute or select
+          if (letter) {
+            if (['COPY','WHATSAPP','ASK AI','RESET_HISTORY'].includes(letter)) executeAction(letter);
+            else selectPrediction(letter);
           }
+          stateRef.current.hoverStart = Date.now();
+          hit.style.setProperty('--dwell-progress', '0%');
         }
       }
     } else {
-      if (stateRef.current.hoverBtn) {
+      if (stateRef.current.hoverBtn && !(stateRef.current.hoverBtn.closest('#keyboard-area'))) {
         stateRef.current.hoverBtn.style.setProperty('--dwell-progress', '0%');
         stateRef.current.hoverBtn.style.backgroundColor = '';
-        stateRef.current.hoverBtn.style.color = '';
         stateRef.current.hoverBtn = null;
         setHoverBtn(null);
-        stateRef.current.hasWarned = false;
       }
     }
-
-    // Always update keyboard cursor (it handles its own dwell-fire)
-    updateKeyboardCursor(hit);
   };
 
   if (!hasStarted) {
@@ -812,7 +901,8 @@ function App() {
                   </div>
 
                   {/* ── Keyboard Gaze Cursor (circle + dot + dwell ring) ── */}
-                  <div ref={keyboardCursorRef} id="keyboard-cursor" style={{display: 'none'}}>
+                  {/* No display:none React prop — CSS hides it; JS always wins via ref */}
+                  <div ref={keyboardCursorRef} id="keyboard-cursor">
                     <svg viewBox="0 0 40 40" width="48" height="48">
                       {/* Background ring */}
                       <circle cx="20" cy="20" r="17" className="kc-track" />
