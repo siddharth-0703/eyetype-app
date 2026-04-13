@@ -46,6 +46,7 @@ function App() {
   const keyboardCursorRef = useRef<HTMLDivElement>(null);
   const keyboardCursorCircleRef = useRef<SVGCircleElement>(null);
   const frameCountRef = useRef(0);
+  const calibSamplesRef = useRef<{x: number, y: number}[]>([]);
 
   const [hasStarted, setHasStarted] = useState(false);
   const [tier] = useState("REGISTERED");
@@ -57,6 +58,11 @@ function App() {
   const [theme, setTheme] = useState<keyof typeof THEMES>('Dark');
   const [cameraStatus, setCameraStatus] = useState('Off');
   const [distanceCm, setDistanceCm] = useState(0);
+  const [calibPhase, setCalibPhase] = useState<'idle' | 'calibrating' | 'done'>('idle');
+  const [calibProgress, setCalibProgress] = useState(0);
+  const [calibWarning, setCalibWarning] = useState('');
+  const [calibBaselineX, setCalibBaselineX] = useState(0.5);
+  const [calibBaselineY, setCalibBaselineY] = useState(0);
 
   const [inputMode, setInputMode] = useState<'standard' | 'morse'>('standard');
   const [morseSequence, setMorseSequence] = useState<string>('');
@@ -83,12 +89,15 @@ function App() {
     lastWinkTime: 0,
     bothBlinkStart: 0,
     historyResetFired: false,
+    // ── Calibration state ─────────────────────────────────
+    calibPhase: 'idle' as 'idle' | 'calibrating' | 'done',
+    calibStartTime: 0,
     // ── Keyboard-specific gaze state (normal mode, fully independent) ───────────────
-    keySmX: 0,                            // Smoothed keyboard cursor X (px within keyboard area)
-    keySmY: 0,                            // Smoothed keyboard cursor Y
-    keyHoverBtn: null as HTMLElement | null, // Which keyboard key is currently targeted
-    keyHoverStart: 0,                     // When the current key hover started
-    hasKeyWarned: false,                  // BACKSPACE warning spoken flag
+    keySmX: 0,
+    keySmY: 0,
+    keyHoverBtn: null as HTMLElement | null,
+    keyHoverStart: 0,
+    hasKeyWarned: false,
   });
 
   useEffect(() => {
@@ -97,7 +106,8 @@ function App() {
     stateRef.current.inputMode = inputMode;
     stateRef.current.morseSequence = morseSequence;
     stateRef.current.predictions = predictions;
-  }, [typedText, token, inputMode, morseSequence, predictions]);
+    stateRef.current.calibPhase = calibPhase;
+  }, [typedText, token, inputMode, morseSequence, predictions, calibPhase]);
 
   const applyTheme = (tName: keyof typeof THEMES) => {
     setTheme(tName);
@@ -254,6 +264,15 @@ function App() {
       window.addEventListener('deviceorientation', handleGyro, true);
       window.addEventListener('devicemotion', handleMotion, true);
     }
+
+    // Start calibration phase
+    setCalibPhase('calibrating');
+    stateRef.current.calibPhase = 'calibrating';
+    stateRef.current.calibStartTime = Date.now();
+    calibSamplesRef.current = [];
+    setCalibProgress(0);
+    setCalibWarning('');
+
     initCamera();
   };
 
@@ -409,6 +428,88 @@ function App() {
 
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const landmarks = results.multiFaceLandmarks[0];
+
+      // ── CALIBRATION PHASE: collect baseline iris samples ──────────────────
+      if (stateRef.current.calibPhase === 'calibrating') {
+        const elapsed = Date.now() - stateRef.current.calibStartTime;
+        const CALIB_DURATION = 3000; // 3 seconds
+
+        // Compute current iris center relative to eye (same formula as updateKeyboardGaze)
+        const rIX = (landmarks[468].x + landmarks[469].x + landmarks[470].x + landmarks[471].x + landmarks[472].x) / 5;
+        const lIX = (landmarks[473].x + landmarks[474].x + landmarks[475].x + landmarks[476].x + landmarks[477].x) / 5;
+        const rIY = (landmarks[468].y + landmarks[469].y + landmarks[470].y + landmarks[471].y + landmarks[472].y) / 5;
+        const lIY = (landmarks[473].y + landmarks[474].y + landmarks[475].y + landmarks[476].y + landmarks[477].y) / 5;
+
+        const rEL = Math.min(landmarks[33].x, landmarks[133].x);
+        const rER = Math.max(landmarks[33].x, landmarks[133].x);
+        const lEL = Math.min(landmarks[263].x, landmarks[362].x);
+        const lER = Math.max(landmarks[263].x, landmarks[362].x);
+        const rW = (rER - rEL) || 0.001;
+        const lW = (lER - lEL) || 0.001;
+        const normX = 1.0 - ((rIX - rEL) / rW + (lIX - lEL) / lW) / 2;
+
+        const rMY = (landmarks[159].y + landmarks[145].y) / 2;
+        const lMY = (landmarks[386].y + landmarks[374].y) / 2;
+        const rEH = Math.abs(landmarks[145].y - landmarks[159].y) || 0.001;
+        const lEH = Math.abs(landmarks[374].y - landmarks[386].y) || 0.001;
+        const normY = ((rIY - rMY) / (rEH * 0.5) + (lIY - lMY) / (lEH * 0.5)) / 2;
+
+        // Check if user is looking roughly at camera (face centerish)
+        const nose = landmarks[4]; // tip of nose
+        const faceIsCenter = nose.x > 0.25 && nose.x < 0.75 && nose.y > 0.25 && nose.y < 0.75;
+        // Check iris isn't wildly off-center (should be near 0.5 normalized)
+        const irisIsCenter = normX > 0.35 && normX < 0.65;
+
+        if (!faceIsCenter || !irisIsCenter) {
+          setCalibWarning('👁️ Please look directly at the camera to calibrate');
+          // Don't collect this sample — user is looking away
+        } else {
+          setCalibWarning('');
+          calibSamplesRef.current.push({ x: normX, y: normY });
+        }
+
+        setCalibProgress(Math.min(100, (elapsed / CALIB_DURATION) * 100));
+
+        // Draw calibration crosshair on canvas
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for overlay
+        const cxc = canvas.width / 2, cyc = canvas.height / 2;
+        ctx.strokeStyle = irisIsCenter && faceIsCenter ? '#10b981' : '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cxc - 30, cyc); ctx.lineTo(cxc + 30, cyc); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cxc, cyc - 30); ctx.lineTo(cxc, cyc + 30); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cxc, cyc, 20, 0, 2 * Math.PI); ctx.stroke();
+        ctx.restore();
+
+        if (elapsed >= CALIB_DURATION) {
+          const samples = calibSamplesRef.current;
+          if (samples.length >= 10) {
+            // Compute median (more robust than mean against outliers)
+            const sortedX = samples.map(s => s.x).sort((a,b) => a - b);
+            const sortedY = samples.map(s => s.y).sort((a,b) => a - b);
+            const medX = sortedX[Math.floor(sortedX.length / 2)];
+            const medY = sortedY[Math.floor(sortedY.length / 2)];
+            setCalibBaselineX(medX);
+            setCalibBaselineY(medY);
+            setCalibPhase('done');
+            setCalibWarning('');
+            speakText('Calibration complete. Start typing.');
+          } else {
+            // Not enough good samples — restart
+            setCalibWarning('⚠️ Could not calibrate — keep your eyes on the camera. Retrying...');
+            stateRef.current.calibStartTime = Date.now();
+            calibSamplesRef.current = [];
+            setCalibProgress(0);
+          }
+        }
+
+        // During calibration, still draw the face but skip all keyboard/blink logic
+        if (drawConnectors && FACEMESH_FACE_OVAL) {
+          drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, { color: '#E0E0E0', lineWidth: 1 });
+        }
+        ctx.restore();
+        return;
+      }
       // DRAW FULL DIGITAL FACE MESH
       if (drawConnectors) {
         drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, { color: 'rgba(56, 189, 248, 0.1)', lineWidth: 0.5 });
@@ -656,13 +757,17 @@ function App() {
     const lNormY = (lIrisY - lEyeMidY) / (lEyeH * 0.5);
     const rawNormY = (rNormY + lNormY) / 2; // approx -1..1
 
-    // === STEP 3: MAP NARROW IRIS RANGE → KEYBOARD [0,1] ===
-    // Iris horizontal travel for comfortable small-screen gaze: ~[0.28, 0.72]
-    // Iris vertical travel (eye-height units): ~±0.35 from center
+    // === STEP 3: SUBTRACT CALIBRATION BASELINE → MAP TO KEYBOARD ===
+    // calibBaselineX is the user's "looking at camera" normX (~0.5 ideally)
+    // calibBaselineY is the user's "looking at camera" normY (~0.0 ideally)
+    // We center the gaze around the baseline, then stretch to keyboard range
+    const centeredX = rawNormX - calibBaselineX + 0.5; // recentered around 0.5
+    const centeredY = rawNormY - calibBaselineY;        // recentered around 0
+
     const GAZE_X_MIN = 0.28, GAZE_X_MAX = 0.72;
-    const GAZE_Y_RANGE = 0.40; // ±0.40 covers full keyboard height
-    const mappedX = Math.max(0, Math.min(1, (rawNormX - GAZE_X_MIN) / (GAZE_X_MAX - GAZE_X_MIN)));
-    const mappedY = Math.max(0, Math.min(1, (rawNormY + GAZE_Y_RANGE) / (2 * GAZE_Y_RANGE)));
+    const GAZE_Y_RANGE = 0.40;
+    const mappedX = Math.max(0, Math.min(1, (centeredX - GAZE_X_MIN) / (GAZE_X_MAX - GAZE_X_MIN)));
+    const mappedY = Math.max(0, Math.min(1, (centeredY + GAZE_Y_RANGE) / (2 * GAZE_Y_RANGE)));
 
     // === STEP 4: ADAPTIVE SMOOTHING ===
     // More responsive for larger jumps (intentional key changes),
@@ -854,7 +959,28 @@ function App() {
       <div className="camera-container glass-panel" style={{margin: '0 10px', position: 'relative'}}>
         <video ref={videoRef} className="input_video" playsInline muted />
         <canvas ref={canvasRef} className="output_canvas" width="640" height="480" />
-        {cameraStatus !== 'Live' && (
+
+        {/* ── CALIBRATION OVERLAY ── */}
+        {calibPhase === 'calibrating' && (
+          <div className="calib-overlay">
+            <div className="calib-crosshair">
+              <div className="calib-ring" style={{borderColor: calibWarning ? '#ef4444' : '#10b981'}}>
+                <div className="calib-dot" style={{background: calibWarning ? '#ef4444' : '#10b981'}} />
+              </div>
+            </div>
+            <div className="calib-info">
+              <p className="calib-title">👁️ Calibrating Gaze Sensor</p>
+              <p className="calib-subtitle">Look directly at the camera and hold still...</p>
+              <div className="calib-bar-track">
+                <div className="calib-bar-fill" style={{width: `${calibProgress}%`}} />
+              </div>
+              <p className="calib-countdown">{Math.max(0, Math.ceil((3000 - calibProgress * 30) / 1000))}s remaining</p>
+              {calibWarning && <p className="calib-warning">{calibWarning}</p>}
+            </div>
+          </div>
+        )}
+
+        {cameraStatus !== 'Live' && calibPhase !== 'calibrating' && (
             <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--accent-color)', fontWeight: 'bold', textShadow: '0 0 10px #000'}}>
                📡 {cameraStatus}
             </div>

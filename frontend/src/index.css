@@ -331,6 +331,99 @@ input:checked + .slider:before { transform: translateX(22px); }
 .morse-seq { font-family: monospace; letter-spacing: 2px; }
 
 /* =========================================
+   CALIBRATION OVERLAY
+   ========================================= */
+
+.calib-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.calib-crosshair {
+  position: relative;
+  width: 80px; height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+
+.calib-ring {
+  width: 60px; height: 60px;
+  border: 3px solid #10b981;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  animation: calib-pulse 1.2s ease-in-out infinite;
+  transition: border-color 0.3s;
+}
+
+.calib-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  transition: background 0.3s;
+}
+
+@keyframes calib-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+
+.calib-info {
+  text-align: center; color: #fff;
+  max-width: 280px;
+}
+
+.calib-title {
+  font-size: 1.1rem; font-weight: 700;
+  margin: 0 0 6px 0;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+
+.calib-subtitle {
+  font-size: 0.85rem; opacity: 0.85;
+  margin: 0 0 12px 0;
+}
+
+.calib-bar-track {
+  width: 100%; height: 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.calib-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #38bdf8);
+  border-radius: 3px;
+  transition: width 0.15s linear;
+}
+
+.calib-countdown {
+  font-size: 0.8rem; opacity: 0.7;
+  margin: 6px 0 0 0;
+  font-family: monospace;
+}
+
+.calib-warning {
+  margin-top: 10px;
+  padding: 8px 14px;
+  background: rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: #fca5a5;
+  animation: calib-warn-flash 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes calib-warn-flash {
+  from { opacity: 0.7; }
+  to   { opacity: 1; }
+}
+
+/* =========================================
    KEYBOARD GAZE CURSOR
    ========================================= */
 
