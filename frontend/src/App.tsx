@@ -3,11 +3,12 @@ import axios from 'axios';
 
 // No top-level globals here to avoid race conditions with CDN scripts
 
-const DWELL_TIME_MS = 99999; // Dwell never auto-fires — blink-only input
-const HEAVY_DWELL_MS = 99999;
+const DWELL_TIME_MS = 2500;           // Keyboard cursor dwell: 2.5s to type
+const HEAVY_DWELL_MS = 5000;          // BACKSPACE dwell: 5s (safety)
 const WARNING_MS = 2000;
 const BLINK_THRESHOLD = 0.25;
-const HISTORY_CLEAR_BLINK_MS = 4000; // 4s both-eye blink to clear history
+const HISTORY_CLEAR_BLINK_MS = 4000;  // 4s both-eye blink to clear history
+const CIRCUMFERENCE = 2 * Math.PI * 17; // SVG keyboard-cursor progress ring (r=17)
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const MORSE_DICT: Record<string, string> = {
@@ -42,6 +43,9 @@ function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
+  const keyboardCursorRef = useRef<HTMLDivElement>(null);
+  const keyboardCursorCircleRef = useRef<SVGCircleElement>(null);
+  const frameCountRef = useRef(0);
 
   const [hasStarted, setHasStarted] = useState(false);
   const [tier] = useState("REGISTERED");
@@ -52,6 +56,7 @@ function App() {
   const [hoverBtn, setHoverBtn] = useState<HTMLElement | null>(null);
   const [theme, setTheme] = useState<keyof typeof THEMES>('Dark');
   const [cameraStatus, setCameraStatus] = useState('Off');
+  const [distanceCm, setDistanceCm] = useState(0);
 
   const [inputMode, setInputMode] = useState<'standard' | 'morse'>('standard');
   const [morseSequence, setMorseSequence] = useState<string>('');
@@ -448,6 +453,17 @@ function App() {
       ctx.lineWidth = 1;
       ctx.stroke();
 
+      // ── DISTANCE ESTIMATION (using inter-eye pixel width) ──────────────────
+      // Known avg. inner-to-outer eye corner distance ≈ 33 mm; focal ≈ 600 px
+      const eyeWidthPx = Math.abs(rCorner.x - rCorner2.x) * canvas.width;
+      if (eyeWidthPx > 5) {
+        frameCountRef.current++;
+        if (frameCountRef.current % 20 === 0) {
+          const estimated = Math.round((600 * 33) / (eyeWidthPx * 10));
+          setDistanceCm(Math.max(20, Math.min(200, estimated)));
+        }
+      }
+
       const earR = Math.abs(landmarks[159].y - landmarks[145].y) / Math.abs(landmarks[33].x - landmarks[133].x);
       const earL = Math.abs(landmarks[386].y - landmarks[374].y) / Math.abs(landmarks[362].x - landmarks[263].x);
       // Both eyes closed: average EAR below threshold AND neither is a wink
@@ -564,10 +580,74 @@ function App() {
           cursorRef.current.style.left = `${stateRef.current.smoothX}px`;
           cursorRef.current.style.top = `${stateRef.current.smoothY}px`;
         }
+
+        // Hide global gaze-cursor when inside keyboard or camera area
+        if (cursorRef.current) {
+          const kEl = document.getElementById('keyboard-area');
+          const cEl = document.querySelector('.camera-container') as HTMLElement | null;
+          let hideGlobal = false;
+          if (kEl) {
+            const kr = kEl.getBoundingClientRect();
+            if (stateRef.current.smoothX >= kr.left && stateRef.current.smoothX <= kr.right &&
+                stateRef.current.smoothY >= kr.top  && stateRef.current.smoothY <= kr.bottom) hideGlobal = true;
+          }
+          if (cEl) {
+            const cr = cEl.getBoundingClientRect();
+            if (stateRef.current.smoothX >= cr.left && stateRef.current.smoothX <= cr.right &&
+                stateRef.current.smoothY >= cr.top  && stateRef.current.smoothY <= cr.bottom) hideGlobal = true;
+          }
+          cursorRef.current.style.opacity = hideGlobal ? '0' : '1';
+        }
+
         checkIntersections();
       }
     }
     ctx.restore();
+  };
+
+  // ── KEYBOARD CURSOR: positions & drives dwell progress ring ────────────────
+  const updateKeyboardCursor = (hitEl: HTMLElement | null) => {
+    const keyboardArea = document.getElementById('keyboard-area');
+    if (!keyboardArea || !keyboardCursorRef.current || !keyboardCursorCircleRef.current) return;
+
+    const kRect = keyboardArea.getBoundingClientRect();
+    const inKeyboard =
+      stateRef.current.smoothX >= kRect.left && stateRef.current.smoothX <= kRect.right &&
+      stateRef.current.smoothY >= kRect.top  && stateRef.current.smoothY <= kRect.bottom;
+
+    if (!inKeyboard) {
+      keyboardCursorRef.current.style.display = 'none';
+      return;
+    }
+
+    // Position relative to keyboard-area container
+    const cx = stateRef.current.smoothX - kRect.left;
+    const cy = stateRef.current.smoothY - kRect.top;
+    keyboardCursorRef.current.style.display = 'block';
+    keyboardCursorRef.current.style.left = `${cx}px`;
+    keyboardCursorRef.current.style.top  = `${cy}px`;
+
+    if (hitEl) {
+      const letter   = hitEl.getAttribute('data-letter');
+      const reqDwell = letter === 'BACKSPACE' ? HEAVY_DWELL_MS : DWELL_TIME_MS;
+      const elapsed  = Date.now() - stateRef.current.hoverStart;
+      const prog     = Math.min(100, (elapsed / reqDwell) * 100);
+      const offset   = CIRCUMFERENCE - (prog / 100) * CIRCUMFERENCE;
+      keyboardCursorCircleRef.current.setAttribute('stroke-dashoffset', offset.toFixed(2));
+
+      // Fire key when circle completes
+      if (prog >= 100) {
+        if (letter) handleKeyPress(letter);
+        stateRef.current.hoverStart = Date.now();
+        keyboardCursorCircleRef.current.setAttribute('stroke-dashoffset', CIRCUMFERENCE.toFixed(2));
+        hitEl.style.setProperty('--dwell-progress', '0%');
+        hitEl.style.backgroundColor = '';
+        hitEl.style.color = '';
+        stateRef.current.hasWarned = false;
+      }
+    } else {
+      keyboardCursorCircleRef.current.setAttribute('stroke-dashoffset', CIRCUMFERENCE.toFixed(2));
+    }
   };
 
   const checkIntersections = () => {
@@ -575,7 +655,7 @@ function App() {
     document.querySelectorAll('.gaze-btn').forEach(b => {
       const rect = (b as HTMLElement).getBoundingClientRect();
       if (stateRef.current.smoothX >= rect.left && stateRef.current.smoothX <= rect.right &&
-          stateRef.current.smoothY >= rect.top && stateRef.current.smoothY <= rect.bottom) {
+          stateRef.current.smoothY >= rect.top  && stateRef.current.smoothY <= rect.bottom) {
         hitEl = b as HTMLElement;
       }
     });
@@ -583,48 +663,46 @@ function App() {
     const hit = hitEl as HTMLElement | null;
     if (hit) {
       if (stateRef.current.hoverBtn !== hit) {
-        if(stateRef.current.hoverBtn) stateRef.current.hoverBtn.style.setProperty('--dwell-progress', `0%`);
+        if (stateRef.current.hoverBtn) {
+          stateRef.current.hoverBtn.style.setProperty('--dwell-progress', '0%');
+          stateRef.current.hoverBtn.style.backgroundColor = '';
+          stateRef.current.hoverBtn.style.color = '';
+        }
         hit.style.backgroundColor = '';
         stateRef.current.hoverBtn = hit;
         setHoverBtn(hit);
         stateRef.current.hoverStart = Date.now();
         stateRef.current.hasWarned = false;
       } else {
-        const letter = hit.getAttribute('data-letter');
+        const letter   = hit.getAttribute('data-letter');
         const reqDwell = letter === 'BACKSPACE' ? HEAVY_DWELL_MS : DWELL_TIME_MS;
-        
-        const elapsed = Date.now() - stateRef.current.hoverStart;
-        const prog = Math.min(100, (elapsed / reqDwell) * 100);
+        const elapsed  = Date.now() - stateRef.current.hoverStart;
+        const prog     = Math.min(100, (elapsed / reqDwell) * 100);
+        // Keep the bottom-bar progress in sync (visual only on button)
         hit.style.setProperty('--dwell-progress', `${prog}%`);
 
         if (letter === 'BACKSPACE' && elapsed > WARNING_MS) {
-            hit.style.backgroundColor = 'rgba(239, 68, 68, 0.8)'; 
-            hit.style.color = 'white';
-            if (!stateRef.current.hasWarned) {
-                speakText("Warning, Deleting All");
-                stateRef.current.hasWarned = true;
-            }
-        }
-
-        // Dwell never auto-fires — typing is blink-only.
-        // The progress bar is purely a visual focus indicator.
-        if (prog >= 100) {
-          // Reset the progress bar so it doesn't stay full
-          hit.style.setProperty('--dwell-progress', `0%`);
-          hit.style.backgroundColor = '';
-          stateRef.current.hoverStart = Date.now();
-          stateRef.current.hasWarned = false;
+          hit.style.backgroundColor = 'rgba(239, 68, 68, 0.8)';
+          hit.style.color = 'white';
+          if (!stateRef.current.hasWarned) {
+            speakText('Warning, Deleting All');
+            stateRef.current.hasWarned = true;
+          }
         }
       }
     } else {
       if (stateRef.current.hoverBtn) {
-        stateRef.current.hoverBtn.style.setProperty('--dwell-progress', `0%`);
+        stateRef.current.hoverBtn.style.setProperty('--dwell-progress', '0%');
         stateRef.current.hoverBtn.style.backgroundColor = '';
+        stateRef.current.hoverBtn.style.color = '';
         stateRef.current.hoverBtn = null;
         setHoverBtn(null);
         stateRef.current.hasWarned = false;
       }
     }
+
+    // Always update keyboard cursor (it handles its own dwell-fire)
+    updateKeyboardCursor(hit);
   };
 
   if (!hasStarted) {
@@ -668,6 +746,7 @@ function App() {
     <div className="app-container">
       <div style={{display: 'flex', justifyContent: 'space-between', padding: '5px 15px', fontSize: '0.8rem', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
         <span>{tier === 'REGISTERED' ? '🌟 REGISTERED ACTIVE' : '👤 GUEST MODE'}</span>
+        <span style={{fontFamily: 'monospace', color: 'var(--accent-color)'}}>📏 {distanceCm > 0 ? `~${distanceCm}cm` : '---'}</span>
         
         <div style={{display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(255,255,255,0.05)', padding: '5px 10px', borderRadius: '20px'}}>
             <span style={{opacity: inputMode === 'standard' ? 1 : 0.5}}>Standard</span>
@@ -724,11 +803,31 @@ function App() {
 
         <div style={{display: 'flex', gap: '10px', flexGrow: 1, minHeight: 0}}>
             {inputMode === 'standard' ? (
-                <div className="keyboard-grid" style={{flexGrow: 1}}>
-                {['A', 'B', 'C', 'D'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
-                {['E', 'F', 'G', 'H'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
-                {['I', 'J', 'K', 'L'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
-                {['SPACE', 'CLEAR', 'BACKSPACE'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''}`} data-letter={l} style={l === 'BACKSPACE' ? {gridColumn: 'span 2'} : {}}>{l === 'SPACE' ? '␣' : l === 'CLEAR' ? 'CLR' : 'DEL ALL'}</button>)}
+                <div id="keyboard-area" style={{position: 'relative', flexGrow: 1, minHeight: 0}}>
+                  <div className="keyboard-grid" style={{height: '100%'}}>
+                    {['A', 'B', 'C', 'D'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
+                    {['E', 'F', 'G', 'H'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
+                    {['I', 'J', 'K', 'L'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
+                    {['SPACE', 'CLEAR', 'BACKSPACE'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''}`} data-letter={l} style={l === 'BACKSPACE' ? {gridColumn: 'span 2'} : {}}>{l === 'SPACE' ? '␣' : l === 'CLEAR' ? 'CLR' : 'DEL ALL'}</button>)}
+                  </div>
+
+                  {/* ── Keyboard Gaze Cursor (circle + dot + dwell ring) ── */}
+                  <div ref={keyboardCursorRef} id="keyboard-cursor" style={{display: 'none'}}>
+                    <svg viewBox="0 0 40 40" width="48" height="48">
+                      {/* Background ring */}
+                      <circle cx="20" cy="20" r="17" className="kc-track" />
+                      {/* Dwell progress ring — strokes from top (rotated -90°) */}
+                      <circle
+                        cx="20" cy="20" r="17"
+                        className="kc-progress"
+                        ref={keyboardCursorCircleRef}
+                        strokeDasharray={CIRCUMFERENCE.toFixed(2)}
+                        strokeDashoffset={CIRCUMFERENCE.toFixed(2)}
+                      />
+                      {/* Center dot */}
+                      <circle cx="20" cy="20" r="4" className="kc-dot" />
+                    </svg>
+                  </div>
                 </div>
             ) : (
                 <div className="morse-grid" 

@@ -330,7 +330,46 @@ input:checked + .slider:before { transform: translateX(22px); }
 .morse-char { font-weight: bold; color: var(--accent-color); font-size: 1.2rem; }
 .morse-seq { font-family: monospace; letter-spacing: 2px; }
 
-/* Blink Feedback Widget */
+/* =========================================
+   KEYBOARD GAZE CURSOR
+   ========================================= */
+
+#keyboard-cursor {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 50;
+  /* Smooth movement — driven every animation frame by engine */
+  transition: left 0.06s ease-out, top 0.06s ease-out;
+  filter: drop-shadow(0 0 8px var(--accent-color));
+}
+
+/* Track ring (dim background) */
+.kc-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 3;
+}
+
+/* Dwell progress ring — rotated so it fills from the top */
+.kc-progress {
+  fill: none;
+  stroke: var(--accent-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 0.12s linear;
+}
+
+/* Centre dot */
+.kc-dot {
+  fill: var(--accent-color);
+  filter: brightness(1.4);
+}
+
+/* =========================================
+   Blink Feedback Widget */
 .blink-widget { margin: 10px 0; height: 50px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); border-radius: 25px; position: relative; overflow: hidden; font-weight: bold; font-size: 1.2rem; border: 1px solid var(--glass-border); }
 .blink-dot { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-color); transition: transform 0.1s, box-shadow 0.1s; opacity: 0; }
 .blink-dot.active { opacity: 1; transform: scale(1.5); box-shadow: 0 0 20px var(--accent-color); }
