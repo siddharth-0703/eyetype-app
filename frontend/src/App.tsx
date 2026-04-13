@@ -901,27 +901,20 @@ function App() {
 
   if (!hasStarted) {
     return (
-      <div className="login-screen" style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column'}}>
-        <div style={{background: 'rgba(255,255,255,0.1)', padding: '20px', borderRadius: '15px', color: '#fff', marginBottom: '20px', maxWidth: '300px', textAlign: 'center'}}>
-           <h3>How it works</h3>
-           <p style={{fontSize: '0.9rem', marginTop: '10px'}}>Gaze tracking combined with dynamic AI text prediction. Available natively on Android.</p>
-        </div>
+      <div className="login-screen">
+        <div className="start-card">
+           <h1>EyeType</h1>
+           <p className="tagline">Gaze-powered keyboard with AI text prediction. Built for accessibility, works on any device with a camera.</p>
+           
+           <button onClick={startEngine} className="start-btn">
+              👁️ START SENSORS & AI
+           </button>
 
-        <h1 style={{fontSize: '3rem', marginBottom: '2rem'}}>EyeType Portal</h1>
-        
-        <button 
-           onClick={startEngine} 
-           style={{
-               padding: '20px 40px', fontSize: '1.5rem', background: '#38bdf8', 
-               border: 'none', borderRadius: '50px', color: '#fff', 
-               fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 8px 30px rgba(56, 189, 248, 0.5)',
-               transition: 'transform 0.2s'
-           }}
-           onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
-           onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-        >
-           START SENSORS & AI
-        </button>
+           <div className="info-row">
+             <span className="info-chip">📷 Camera Required</span>
+             <span className="info-chip">🔒 100% Private</span>
+           </div>
+        </div>
       </div>
     )
   }
@@ -938,20 +931,20 @@ function App() {
 
   return (
     <div className="app-container">
-      <div style={{display: 'flex', justifyContent: 'space-between', padding: '5px 15px', fontSize: '0.8rem', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
-        <span>{tier === 'REGISTERED' ? '🌟 REGISTERED ACTIVE' : '👤 GUEST MODE'}</span>
-        <span style={{fontFamily: 'monospace', color: 'var(--accent-color)'}}>📏 {distanceCm > 0 ? `~${distanceCm}cm` : '---'}</span>
+      <div className="app-top-bar">
+        <span className="status-badge">{tier === 'REGISTERED' ? '🌟 REGISTERED' : '👤 GUEST'}</span>
+        <span className="distance-badge">📏 {distanceCm > 0 ? `~${distanceCm}cm` : '---'}</span>
         
-        <div style={{display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(255,255,255,0.05)', padding: '5px 10px', borderRadius: '20px'}}>
+        <div className="mode-toggle">
             <span style={{opacity: inputMode === 'standard' ? 1 : 0.5}}>Standard</span>
             <label className="switch">
                 <input type="checkbox" checked={inputMode === 'morse'} onChange={(e) => setInputMode(e.target.checked ? 'morse' : 'standard')} />
                 <span className="slider"></span>
             </label>
-            <span style={{opacity: inputMode === 'morse' ? 1 : 0.5, color: inputMode === 'morse' ? 'var(--accent-color)' : 'inherit', fontWeight: inputMode === 'morse' ? 'bold' : 'normal'}}>Morse Mode</span>
+            <span style={{opacity: inputMode === 'morse' ? 1 : 0.5, color: inputMode === 'morse' ? 'var(--accent-color)' : 'inherit', fontWeight: inputMode === 'morse' ? 'bold' : 'normal'}}>Morse</span>
         </div>
 
-        <select value={theme} onChange={(e) => applyTheme(e.target.value as any)} style={{background: 'transparent', color: 'inherit', border: 'none'}}>
+        <select value={theme} onChange={(e) => applyTheme(e.target.value as any)}>
           {Object.keys(THEMES).map(t => <option key={t} value={t} style={{color: '#000'}}>{t}</option>)}
         </select>
       </div>
@@ -1012,7 +1005,7 @@ function App() {
             )}
         </div>
 
-        <div className="text-output" style={{whiteSpace: 'pre-wrap', fontSize: '1.2rem', overflowY: 'auto', flexGrow: inputMode==='morse' ? 0 : 0 }}>
+        <div className="text-output">
           <span id="typed-text">{typedText}</span><span className="blinking-cursor">|</span>
         </div>
 
@@ -1069,10 +1062,10 @@ function App() {
             {/* REGISTERED ACTION BAR */}
             {tier === 'REGISTERED' && (
                 <div className="action-bar">
-                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'COPY' ? 'hover-active' : ''}`} data-letter="COPY" onClick={() => executeAction('COPY')} style={{flexGrow: 1, fontSize: '0.8rem', background: 'rgba(16, 185, 129, 0.2)'}}>COPY</button>
-                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'WHATSAPP' ? 'hover-active' : ''}`} data-letter="WHATSAPP" onClick={() => executeAction('WHATSAPP')} style={{flexGrow: 1, fontSize: '0.6rem', background: 'rgba(34, 197, 94, 0.2)'}}>W-APP</button>
-                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'ASK AI' ? 'hover-active' : ''}`} data-letter="ASK AI" onClick={() => executeAction('ASK AI')} style={{flexGrow: 1, fontSize: '0.8rem', background: 'rgba(147, 51, 234, 0.2)'}}>ASK AI</button>
-                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'RESET_HISTORY' ? 'hover-active' : ''}`} data-letter="RESET_HISTORY" onClick={() => executeAction('RESET_HISTORY')} title="Clear all history" style={{flexGrow: 1, fontSize: '1.2rem', background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239,68,68,0.5)'}}>🗑</button>
+                    <button className={`gaze-btn btn-copy ${hoverBtn?.dataset.letter === 'COPY' ? 'hover-active' : ''}`} data-letter="COPY" onClick={() => executeAction('COPY')}>COPY</button>
+                    <button className={`gaze-btn btn-whatsapp ${hoverBtn?.dataset.letter === 'WHATSAPP' ? 'hover-active' : ''}`} data-letter="WHATSAPP" onClick={() => executeAction('WHATSAPP')}>W-APP</button>
+                    <button className={`gaze-btn btn-ai ${hoverBtn?.dataset.letter === 'ASK AI' ? 'hover-active' : ''}`} data-letter="ASK AI" onClick={() => executeAction('ASK AI')}>ASK AI</button>
+                    <button className={`gaze-btn btn-reset ${hoverBtn?.dataset.letter === 'RESET_HISTORY' ? 'hover-active' : ''}`} data-letter="RESET_HISTORY" onClick={() => executeAction('RESET_HISTORY')} title="Clear all history">🗑</button>
                 </div>
             )}
         </div>
