@@ -3,10 +3,11 @@ import axios from 'axios';
 
 // No top-level globals here to avoid race conditions with CDN scripts
 
-const DWELL_TIME_MS = 2000;
-const HEAVY_DWELL_MS = 4000;
+const DWELL_TIME_MS = 99999; // Dwell never auto-fires — blink-only input
+const HEAVY_DWELL_MS = 99999;
 const WARNING_MS = 2000;
 const BLINK_THRESHOLD = 0.25;
+const HISTORY_CLEAR_BLINK_MS = 4000; // 4s both-eye blink to clear history
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const MORSE_DICT: Record<string, string> = {
@@ -54,7 +55,7 @@ function App() {
 
   const [inputMode, setInputMode] = useState<'standard' | 'morse'>('standard');
   const [morseSequence, setMorseSequence] = useState<string>('');
-  const [blinkStatus, setBlinkStatus] = useState<'idle' | 'dot' | 'dash' | 'mega' | 'clear'>('idle');
+  const [blinkStatus, setBlinkStatus] = useState<'idle' | 'dot' | 'dash' | 'mega' | 'clear' | 'reset'>('idle');
 
   const stateRef = useRef({
     typedText: '',
@@ -74,7 +75,9 @@ function App() {
     tiltFired: false,
     shakeCooldown: 0,
     touchStart: 0,
-    lastWinkTime: 0
+    lastWinkTime: 0,
+    bothBlinkStart: 0,         // Tracks when both-eye blink started (for 4s reset)
+    historyResetFired: false   // Prevents the reset from firing repeatedly
   });
 
   useEffect(() => {
@@ -154,6 +157,20 @@ function App() {
       } catch(e) {
         setTypedText(currentText + "\n[AI Server Offline]\n");
         speakText("AI Server Offline");
+      }
+    }
+    else if (actionId === 'RESET_HISTORY') {
+      // Clear typed text on screen
+      setTypedText('');
+      setPredictions([]);
+      stateRef.current.typedText = '';
+      stateRef.current.predictions = [];
+      speakText("History cleared");
+      // Reset backend N-Gram model
+      try {
+        await axios.post(`${API_BASE}/reset`);
+      } catch(e) {
+        console.error('Reset failed', e);
       }
     }
   }
@@ -433,8 +450,32 @@ function App() {
 
       const earR = Math.abs(landmarks[159].y - landmarks[145].y) / Math.abs(landmarks[33].x - landmarks[133].x);
       const earL = Math.abs(landmarks[386].y - landmarks[374].y) / Math.abs(landmarks[362].x - landmarks[263].x);
-      const isBlinking = (earR + earL) / 2 < BLINK_THRESHOLD;
+      // Both eyes closed: average EAR below threshold AND neither is a wink
+      const isWinkR = earR < BLINK_THRESHOLD && earL > (BLINK_THRESHOLD * 2);
+      const isWinkL = earL < BLINK_THRESHOLD && earR > (BLINK_THRESHOLD * 2);
+      const bothEyesClosed = earR < BLINK_THRESHOLD && earL < BLINK_THRESHOLD;
+      const isBlinking = bothEyesClosed; // full blink = both eyes
       const now = Date.now();
+
+      // ── 4-SECOND BOTH-EYE BLINK → CLEAR HISTORY ──────────────────────────
+      if (bothEyesClosed) {
+        if (stateRef.current.bothBlinkStart === 0) stateRef.current.bothBlinkStart = now;
+        const held = now - stateRef.current.bothBlinkStart;
+        if (held >= HISTORY_CLEAR_BLINK_MS && !stateRef.current.historyResetFired) {
+          stateRef.current.historyResetFired = true;
+          setBlinkStatus('reset');
+          executeAction('RESET_HISTORY');
+          setTimeout(() => setBlinkStatus('idle'), 1500);
+        } else if (!stateRef.current.historyResetFired) {
+          // Show charging progress in blink widget
+          if (held > 2000) setBlinkStatus('reset');
+          else if (held > 800) setBlinkStatus('clear');
+        }
+      } else {
+        // Eyes opened — reset the 4s counter
+        stateRef.current.bothBlinkStart = 0;
+        stateRef.current.historyResetFired = false;
+      }
 
       if (isBlinking) {
         if (stateRef.current.blinkDurationStart === 0) stateRef.current.blinkDurationStart = now;
@@ -446,45 +487,51 @@ function App() {
             else if (currentDuration > 250) setBlinkStatus('dash');
             else setBlinkStatus('dot');
         }
-        } else {
-          if (stateRef.current.blinkDurationStart > 0) {
-            const duration = now - stateRef.current.blinkDurationStart;
-            stateRef.current.blinkDurationStart = 0;
-            
-            if (stateRef.current.inputMode === 'standard') {
-                if (duration < 300 && duration > 50) {
-                  if (stateRef.current.hoverBtn) {
-                     const letter = stateRef.current.hoverBtn.getAttribute('data-letter');
-                     if (letter) handleKeyPress(letter);
-                  }
-                } else if (duration >= 300) {
-                  handleKeyPress("SPACE");
-                }
-            } else {
-                processMorseDuration(duration);
-            }
-          } else if (stateRef.current.inputMode === 'morse' && stateRef.current.morseSequence.length > 0) {
-              if (now - stateRef.current.lastBlinkEnd > 1000) {
-                  if (MORSE_DICT[stateRef.current.morseSequence]) {
-                      handleKeyPress(MORSE_DICT[stateRef.current.morseSequence]);
-                  } else {
-                      speakText("Invalid Morse");
-                  }
-                  setMorseSequence('');
-              }
-          }
+      } else {
+        // Eyes fully opened — evaluate completed blink
+        if (stateRef.current.blinkDurationStart > 0) {
+          const duration = now - stateRef.current.blinkDurationStart;
+          stateRef.current.blinkDurationStart = 0;
 
-          // ONE EYE BLINK (WINK) TO CLEAR
-          const isWinkR = earR < BLINK_THRESHOLD && earL > (BLINK_THRESHOLD * 2);
-          const isWinkL = earL < BLINK_THRESHOLD && earR > (BLINK_THRESHOLD * 2);
-          
-          if ((isWinkR || isWinkL) && now - stateRef.current.lastWinkTime > 1500) {
-              stateRef.current.lastWinkTime = now;
-              handleKeyPress('CLEAR');
-              setBlinkStatus('clear');
-              setTimeout(() => setBlinkStatus('idle'), 1000);
+          // Ignore very short noise (< 60ms) to prevent ghost typing from ambient light
+          if (duration < 60) {
+            // do nothing, too short to be intentional
+          } else if (stateRef.current.inputMode === 'standard') {
+            if (duration < 350 && duration >= 60) {
+              // Short deliberate blink → type the hovered key
+              if (stateRef.current.hoverBtn) {
+                const letter = stateRef.current.hoverBtn.getAttribute('data-letter');
+                if (letter) handleKeyPress(letter);
+              }
+            } else if (duration >= 350 && duration < HISTORY_CLEAR_BLINK_MS) {
+              // Medium-long blink → Space
+              handleKeyPress('SPACE');
+            }
+            // Very long blink (>= 4s) is handled by the 4s reset logic above
+          } else {
+            // Morse mode blink
+            if (duration < HISTORY_CLEAR_BLINK_MS) processMorseDuration(duration);
           }
+          setBlinkStatus('idle');
+        } else if (stateRef.current.inputMode === 'morse' && stateRef.current.morseSequence.length > 0) {
+            if (now - stateRef.current.lastBlinkEnd > 1000) {
+                if (MORSE_DICT[stateRef.current.morseSequence]) {
+                    handleKeyPress(MORSE_DICT[stateRef.current.morseSequence]);
+                } else {
+                    speakText("Invalid Morse");
+                }
+                setMorseSequence('');
+            }
         }
+
+        // ── ONE EYE WINK → CLEAR LAST WORD ──────────────────────────────────
+        if ((isWinkR || isWinkL) && now - stateRef.current.lastWinkTime > 1500) {
+            stateRef.current.lastWinkTime = now;
+            handleKeyPress('CLEAR');
+            setBlinkStatus('clear');
+            setTimeout(() => setBlinkStatus('idle'), 1000);
+        }
+      }
 
       // PRECISION GAZE CALCULATION (Using Dual Eye Average)
       const sW = landmarks[133].x - landmarks[33].x;
@@ -559,11 +606,13 @@ function App() {
             }
         }
 
+        // Dwell never auto-fires — typing is blink-only.
+        // The progress bar is purely a visual focus indicator.
         if (prog >= 100) {
-          if (letter) handleKeyPress(letter);
+          // Reset the progress bar so it doesn't stay full
           hit.style.setProperty('--dwell-progress', `0%`);
           hit.style.backgroundColor = '';
-          stateRef.current.hoverStart = Date.now(); 
+          stateRef.current.hoverStart = Date.now();
           stateRef.current.hasWarned = false;
         }
       }
@@ -654,21 +703,20 @@ function App() {
           {predictions.length === 0 && <span style={{color: 'var(--text-secondary)'}}>Modeling behavior...</span>}
         </div>
 
-        {inputMode === 'morse' && (
-            <div className="blink-widget">
-                {blinkStatus === 'idle' && morseSequence.length === 0 && <span style={{opacity: 0.5, fontSize: '1rem'}}>Ready (Blink to type)</span>}
-                {blinkStatus === 'idle' && morseSequence.length > 0 && <span className="morse-seq">{morseSequence}</span>}
-                {blinkStatus !== 'idle' && (
-                    <>
-                        <div className={`blink-dash ${blinkStatus === 'dash' ? 'active' : ''} ${blinkStatus === 'mega' ? 'blink-mega' : ''} ${blinkStatus === 'clear' ? 'blink-clear' : ''}`}></div>
-                        <div className={`blink-dot ${blinkStatus === 'dot' ? 'active' : ''}`}></div>
-                        <span style={{position: 'absolute', zIndex: 1, textShadow: '0 0 5px #000'}}>
-                            {blinkStatus === 'mega' ? 'ACCEPT WORD' : blinkStatus === 'clear' ? 'CLEAR ALL' : morseSequence}
-                        </span>
-                    </>
-                )}
-            </div>
-        )}
+        {/* Blink feedback widget — always visible so user sees reset charging */}
+        <div className="blink-widget" style={{display: inputMode === 'morse' || blinkStatus !== 'idle' ? 'flex' : 'none'}}>
+            {blinkStatus === 'idle' && morseSequence.length === 0 && <span style={{opacity: 0.5, fontSize: '1rem'}}>Ready (Blink to type)</span>}
+            {blinkStatus === 'idle' && morseSequence.length > 0 && <span className="morse-seq">{morseSequence}</span>}
+            {blinkStatus !== 'idle' && (
+                <>
+                    <div className={`blink-dash ${blinkStatus === 'dash' ? 'active' : ''} ${blinkStatus === 'mega' ? 'blink-mega' : ''} ${blinkStatus === 'clear' ? 'blink-clear' : ''} ${blinkStatus === 'reset' ? 'blink-reset' : ''}`}></div>
+                    <div className={`blink-dot ${blinkStatus === 'dot' ? 'active' : ''}`}></div>
+                    <span style={{position: 'absolute', zIndex: 1, textShadow: '0 0 5px #000'}}>
+                        {blinkStatus === 'mega' ? 'ACCEPT WORD' : blinkStatus === 'clear' ? 'CLEAR WORD' : blinkStatus === 'reset' ? '🗑 HISTORY RESET' : morseSequence}
+                    </span>
+                </>
+            )}
+        </div>
 
         <div className="text-output" style={{whiteSpace: 'pre-wrap', fontSize: '1.2rem', overflowY: 'auto', flexGrow: inputMode==='morse' ? 0 : 0 }}>
           <span id="typed-text">{typedText}</span><span className="blinking-cursor">|</span>
@@ -706,9 +754,10 @@ function App() {
             {/* REGISTERED ACTION BAR */}
             {tier === 'REGISTERED' && (
                 <div className="action-bar">
-                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'COPY' ? 'hover-active' : ''}`} data-letter="COPY" style={{flexGrow: 1, fontSize: '0.8rem', background: 'rgba(16, 185, 129, 0.2)'}}>COPY</button>
-                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'WHATSAPP' ? 'hover-active' : ''}`} data-letter="WHATSAPP" style={{flexGrow: 1, fontSize: '0.6rem', background: 'rgba(34, 197, 94, 0.2)'}}>W-APP</button>
-                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'ASK AI' ? 'hover-active' : ''}`} data-letter="ASK AI" style={{flexGrow: 1, fontSize: '0.8rem', background: 'rgba(147, 51, 234, 0.2)'}}>ASK AI</button>
+                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'COPY' ? 'hover-active' : ''}`} data-letter="COPY" onClick={() => executeAction('COPY')} style={{flexGrow: 1, fontSize: '0.8rem', background: 'rgba(16, 185, 129, 0.2)'}}>COPY</button>
+                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'WHATSAPP' ? 'hover-active' : ''}`} data-letter="WHATSAPP" onClick={() => executeAction('WHATSAPP')} style={{flexGrow: 1, fontSize: '0.6rem', background: 'rgba(34, 197, 94, 0.2)'}}>W-APP</button>
+                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'ASK AI' ? 'hover-active' : ''}`} data-letter="ASK AI" onClick={() => executeAction('ASK AI')} style={{flexGrow: 1, fontSize: '0.8rem', background: 'rgba(147, 51, 234, 0.2)'}}>ASK AI</button>
+                    <button className={`gaze-btn ${hoverBtn?.dataset.letter === 'RESET_HISTORY' ? 'hover-active' : ''}`} data-letter="RESET_HISTORY" onClick={() => executeAction('RESET_HISTORY')} title="Clear all history" style={{flexGrow: 1, fontSize: '1.2rem', background: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239,68,68,0.5)'}}>🗑</button>
                 </div>
             )}
         </div>

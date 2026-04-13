@@ -150,6 +150,12 @@ def log_word(data: TypedWord):
     ''', (prev, curr))
     return {"status": "trained"}
 
+@app.post("/reset")
+def reset_history():
+    """Wipes all N-Gram training data, giving the user a fresh predictive model."""
+    run_sql("DELETE FROM ngram_model")
+    return {"status": "reset", "message": "Typing history cleared."}
+
 @app.get("/predict")
 def predict_word(prev_word: str = "", prefix: str = "", use_ai: bool = False, token: str = "GUEST"):
     """
