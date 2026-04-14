@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import { useMode } from './context/ModeContext';
 
 // No top-level globals here to avoid race conditions with CDN scripts
 
@@ -40,6 +39,7 @@ const THEMES = {
 };
 
 function App() {
+  const { mode, gazePos, landmarks, blinkStatus: globalBlink } = useMode();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -242,15 +242,14 @@ function App() {
   };
 
   const selectPrediction = (word: string) => {
-    const words = stateRef.current.typedText.split(' ');
-    words.pop(); 
-    words.push(word);
-    
-    const newStr = words.join(' ') + ' ';
-    setTypedText(newStr);
-    logWord(word); 
-    speakText(word); 
-    fetchPredictions('');
+    // Logic to select prediction
+    if (!word) return;
+    const words = typedText.trim().split(' ');
+    words[words.length - 1] = word;
+    const newText = words.join(' ') + ' ';
+    setTypedText(newText);
+    stateRef.current.typedText = newText;
+    fetchPredictions(newText);
   };
 
   const startEngine = async () => {
@@ -385,36 +384,18 @@ function App() {
       }
   };
 
-  const initCamera = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    
-    // Safety check for MediaPipe globals
-    const FaceMesh = (window as any).FaceMesh;
-    const Camera = (window as any).Camera;
-    if (!FaceMesh || !Camera) {
-        alert("Eye Tracking AI still loading... Please wait 5 seconds and try again.");
-        setHasStarted(false);
-        return;
+  // Use global gaze data instead of local camera
+  useEffect(() => {
+    if (mode === 'gaze' && landmarks.length > 0) {
+      if (cameraStatus !== 'Live') setCameraStatus('Live');
+      onResults({ multiFaceLandmarks: [landmarks], image: null });
+    } else {
+      setCameraStatus('Off');
     }
-
-    const faceMesh = new FaceMesh({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
-    faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-    faceMesh.onResults(onResults);
-
-     setCameraStatus('Initializing AI...');
-     const camera = new Camera(videoRef.current, {
-       onFrame: async () => { 
-           try {
-               await faceMesh.send({ image: videoRef.current! }); 
-           } catch(e) { console.error("FaceMesh Send Error", e); }
-       },
-       width: 640, height: 480
-     });
-     camera.start();
-     fetchPredictions('');
-  };
+  }, [landmarks, mode]);
 
   const onResults = (results: any) => {
+    // ... logic to draw local canvas if needed, but primarily process gaze
     const canvas = canvasRef.current;
     if (!canvas) return; const ctx = canvas.getContext('2d'); if (!ctx) return;
 
@@ -429,9 +410,10 @@ function App() {
     }
 
     if (cameraStatus !== 'Live') setCameraStatus('Live');
-
-    ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
-    ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+    
+    // Draw landmarks only if needed, focus on processing data
+    // ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+    // ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
     const drawConnectors = (window as any).drawConnectors;
     const FACEMESH_TESSELATION = (window as any).FACEMESH_TESSELATION;

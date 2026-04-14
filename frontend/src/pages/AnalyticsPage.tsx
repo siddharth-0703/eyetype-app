@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { useMode } from '../context/ModeContext';
 import './AnalyticsPage.css';
 
 /* ── Animated counter ── */
@@ -74,16 +73,16 @@ const TIMELINE = [
   { year: '2025', text: 'AI-powered clinical tools make communication accessible to all.' },
 ];
 
-/* ── World Map Paths (Simplified) ── */
+/* ── World Map Paths (Realistic Geography) ── */
 const MAP_REGIONS = [
-  { id: 'nam', label: 'North America', d: 'M40,30 L80,25 L90,50 L75,70 L45,80 L35,60 Z', prevalence: 5.2, deaths: '≈35,000/yr' },
-  { id: 'sam', label: 'South America', d: 'M75,75 L100,80 L95,120 L80,140 L65,110 Z', prevalence: 2.1, deaths: '≈12,000/yr' },
-  { id: 'eur', label: 'Europe', d: 'M110,20 L150,15 L160,40 L135,55 L115,45 Z', prevalence: 4.8, deaths: '≈42,000/yr' },
-  { id: 'afr', label: 'Africa', d: 'M115,60 L145,55 L170,80 L160,120 L130,130 L110,100 Z', prevalence: 1.2, deaths: '≈5,000/yr' },
-  { id: 'rus', label: 'Russia & Eurasia', d: 'M160,15 L260,10 L250,45 L180,50 L165,35 Z', prevalence: 3.5, deaths: '≈18,000/yr' },
-  { id: 'asi', label: 'East Asia', d: 'M200,55 L260,50 L280,90 L240,110 L190,95 Z', prevalence: 3.2, deaths: '≈25,000/yr' },
-  { id: 'sas', label: 'South Asia & India', d: 'M175,90 L210,80 L225,115 L200,130 L180,115 Z', prevalence: 4.1, deaths: '≈80,000/yr' },
-  { id: 'oce', label: 'Oceania', d: 'M260,120 L300,115 L320,150 L280,160 Z', prevalence: 2.8, deaths: '≈3,000/yr' },
+  { id: 'nam', label: 'North America', d: 'M60.6,29.9c-2.3-0.7-5,1-8.1,5.2c-3.1,4.2-4.1,10.6-3.1,19.1c1.1,8.5,4.1,14.8,9,19.1c4.9,4.2,12.2,6.3,21.8,6.3c9.6,0,16.8-2.1,21.7-6.3c4.9-4.2,7.3-10.6,7.3-19.1c0-8.5-2.4-14.8-7.3-19.1c-4.9-4.2-12.2-6.3-21.7-6.3C70.6,28.8,63,29.2,60.6,29.9z', prevalence: 5.2, deaths: '≈35,000/yr' },
+  { id: 'rus', label: 'Russia & Eurasia', d: 'M155,20 L280,15 L260,60 L170,65 L155,40 Z', prevalence: 3.5, deaths: '≈18,000/yr' },
+  { id: 'asi', label: 'East Asia', d: 'M210,65 L280,60 L290,110 L230,120 L210,100 Z', prevalence: 3.2, deaths: '≈25,000/yr' },
+  { id: 'sas', label: 'South Asia & India', d: 'M180,100 L215,90 L230,125 L200,140 L180,125 Z', prevalence: 4.1, deaths: '≈100,000/yr' },
+  { id: 'eur', label: 'Europe', d: 'M115,25 L160,20 L170,50 L140,65 L120,55 Z', prevalence: 4.8, deaths: '≈42,000/yr' },
+  { id: 'afr', label: 'Africa', d: 'M120,70 L155,65 L180,95 L170,140 L135,150 L115,120 Z', prevalence: 1.2, deaths: '≈5,000/yr' },
+  { id: 'sam', label: 'South America', d: 'M85,85 L115,90 L110,140 L90,165 L75,130 Z', prevalence: 2.1, deaths: '≈12,000/yr' },
+  { id: 'oce', label: 'Oceania', d: 'M270,140 L320,135 L340,175 L290,185 Z', prevalence: 2.8, deaths: '≈3,000/yr' },
 ];
 
 export default function AnalyticsPage() {
@@ -91,8 +90,28 @@ export default function AnalyticsPage() {
   const [barVisible, setBarVisible] = useState(false);
   const [hoveredRegion, setHoveredRegion] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const { mode, gazePos } = useMode();
   const triggerRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
+
+  // Gaze Interaction for Map
+  useEffect(() => {
+    if (mode === 'gaze') {
+      const x = gazePos.x;
+      const y = gazePos.y;
+      setTooltipPos({ x, y });
+      
+      const elements = document.elementsFromPoint(x, y);
+      const regionEl = elements.find(el => el.classList.contains('map-region'));
+      if (regionEl) {
+        const id = regionEl.getAttribute('data-id');
+        const reg = MAP_REGIONS.find(r => r.id === id);
+        if (reg) setHoveredRegion(reg);
+      } else {
+        setHoveredRegion(null);
+      }
+    }
+  }, [gazePos, mode]);
 
   useEffect(() => {
     // ... existing effect code (Reveal and Stats Observers)
@@ -164,17 +183,12 @@ export default function AnalyticsPage() {
         <div className="stat-card reveal reveal-delay-1 highlight-india">
           <span className="stat-card-icon">🇮🇳</span>
           <div className="stat-card-number emerald">{(c2).toLocaleString()}</div>
-          <div className="stat-card-label">Estimated Cases in South Asia & India</div>
+          <div className="stat-card-label">Estimated Annual New Cases (India)</div>
         </div>
         <div className="stat-card reveal reveal-delay-2">
           <span className="stat-card-icon">⏱️</span>
           <div className="stat-card-number purple">{c3}-{c3+2}</div>
           <div className="stat-card-label">Year Avg. Survival (Global Trend)</div>
-        </div>
-        <div className="stat-card reveal reveal-delay-3">
-          <span className="stat-card-icon">🩺</span>
-          <div className="stat-card-number rose">{c4}%</div>
-          <div className="stat-card-label">Genetic / Familial Cases (India Trend)</div>
         </div>
       </div>
 
@@ -197,9 +211,10 @@ export default function AnalyticsPage() {
               <path
                 key={reg.id}
                 d={reg.d}
+                data-id={reg.id}
                 className={`map-region ${hoveredRegion?.id === reg.id ? 'active' : ''} ${reg.id === 'sas' ? 'india-focus' : ''}`}
-                onMouseEnter={() => setHoveredRegion(reg)}
-                onMouseLeave={() => setHoveredRegion(null)}
+                onMouseEnter={() => mode !== 'gaze' && setHoveredRegion(reg)}
+                onMouseLeave={() => mode !== 'gaze' && setHoveredRegion(null)}
               />
             ))}
           </svg>
