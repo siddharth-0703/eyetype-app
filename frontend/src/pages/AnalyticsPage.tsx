@@ -222,7 +222,7 @@ export default function AnalyticsPage() {
             height={400}
             style={{ width: "100%", height: "auto" }}
           >
-            <Sphere stroke="#E4E5E6" strokeWidth={0.5} />
+            <Sphere stroke="#E4E5E6" strokeWidth={0.5} id="sphere" fill="transparent" />
             <Graticule stroke="#E4E5E6" strokeWidth={0.5} />
             <Geographies geography={geoUrl}>
               {({ geographies }) =>
