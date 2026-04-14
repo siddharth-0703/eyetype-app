@@ -22,6 +22,52 @@ function useCountUp(target: number, duration = 2000, start = false) {
   return value;
 }
 
+/* ── Mini Sparkline Chart ── */
+function MiniTrendChart({ data, color }: { data: number[], color: string }) {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = (max - min) || 1;
+  const width = 240;
+  const height = 100;
+
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * (height - 10) - 5;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const areaPoints = `${points} ${width},${height} 0,${height}`;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="mini-trend-chart">
+      <defs>
+        <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polyline
+        fill={`url(#grad-${color})`}
+        points={areaPoints}
+      />
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+      {data.map((v, i) => {
+        const x = (i / (data.length - 1)) * width;
+        const y = height - ((v - min) / range) * (height - 10) - 5;
+        return <circle key={i} cx={x} cy={y} r="4" fill="#fff" stroke={color} strokeWidth="2" />;
+      })}
+    </svg>
+  );
+}
+
 /* ── SVG Donut helper ── */
 function DonutSegment({ cx, cy, r, pct, offset, color }: { cx: number; cy: number; r: number; pct: number; offset: number; color: string }) {
   const circ = 2 * Math.PI * r;
@@ -79,256 +125,3493 @@ const TIMELINE = [
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 /* ── World Map Data (Realistic ISO Numeric Mapping) ── */
-const MAP_DATA: Record<string, { prevalence: number, deaths: string, color: string }> = {
-  "100": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "104": { "prevalence": 4.5, "deaths": "≈4,500/yr", "color": "#10b981" },
-  "108": { "prevalence": 1.1, "deaths": "≈1,100/yr", "color": "#ec4899" },
-  "112": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "116": { "prevalence": 4.0, "deaths": "≈4,000/yr", "color": "#10b981" },
-  "120": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "124": { "prevalence": 5.0, "deaths": "≈5,000/yr", "color": "#a855f7" },
-  "132": { "prevalence": 1.1, "deaths": "≈1,100/yr", "color": "#ec4899" },
-  "136": { "prevalence": 4.4, "deaths": "≈4,400/yr", "color": "#a855f7" },
-  "140": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "144": { "prevalence": 3.8, "deaths": "≈3,800/yr", "color": "#10b981" },
-  "148": { "prevalence": 1.5, "deaths": "≈1,500/yr", "color": "#ec4899" },
-  "152": { "prevalence": 4.7, "deaths": "≈4,700/yr", "color": "#a855f7" },
-  "156": { "prevalence": 3.8, "deaths": "≈3,800/yr", "color": "#10b981" },
-  "158": { "prevalence": 2.5, "deaths": "≈2,500/yr", "color": "#1f2937" },
-  "162": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#8b5cf6" },
-  "166": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#8b5cf6" },
-  "170": { "prevalence": 4.5, "deaths": "≈4,500/yr", "color": "#a855f7" },
-  "174": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "175": { "prevalence": 1.5, "deaths": "≈1,500/yr", "color": "#ec4899" },
-  "178": { "prevalence": 1.8, "deaths": "≈1,800/yr", "color": "#ec4899" },
-  "180": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "184": { "prevalence": 2.6, "deaths": "≈2,600/yr", "color": "#8b5cf6" },
-  "188": { "prevalence": 2.3, "deaths": "≈2,300/yr", "color": "#a855f7" },
-  "191": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "192": { "prevalence": 4.0, "deaths": "≈4,000/yr", "color": "#a855f7" },
-  "196": { "prevalence": 3.8, "deaths": "≈3,800/yr", "color": "#10b981" },
-  "203": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "204": { "prevalence": 1.8, "deaths": "≈1,800/yr", "color": "#ec4899" },
-  "208": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "212": { "prevalence": 4.7, "deaths": "≈4,700/yr", "color": "#a855f7" },
-  "214": { "prevalence": 2.1, "deaths": "≈2,100/yr", "color": "#a855f7" },
-  "218": { "prevalence": 2.9, "deaths": "≈2,900/yr", "color": "#a855f7" },
-  "222": { "prevalence": 4.3, "deaths": "≈4,300/yr", "color": "#a855f7" },
-  "226": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "231": { "prevalence": 1.7, "deaths": "≈1,700/yr", "color": "#ec4899" },
-  "232": { "prevalence": 1.6, "deaths": "≈1,600/yr", "color": "#ec4899" },
-  "233": { "prevalence": 4.8, "deaths": "≈4,800/yr", "color": "#00d4ff" },
-  "234": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "238": { "prevalence": 4.3, "deaths": "≈4,300/yr", "color": "#a855f7" },
-  "239": { "prevalence": 2.5, "deaths": "≈2,500/yr", "color": "#a855f7" },
-  "242": { "prevalence": 2.6, "deaths": "≈2,600/yr", "color": "#8b5cf6" },
-  "246": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "248": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "250": { "prevalence": 5.2, "deaths": "≈5,200/yr", "color": "#00d4ff" },
-  "254": { "prevalence": 4.0, "deaths": "≈4,000/yr", "color": "#a855f7" },
-  "258": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#8b5cf6" },
-  "260": { "prevalence": 1.7, "deaths": "≈1,700/yr", "color": "#ec4899" },
-  "262": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "266": { "prevalence": 1.5, "deaths": "≈1,500/yr", "color": "#ec4899" },
-  "268": { "prevalence": 4.0, "deaths": "≈4,000/yr", "color": "#10b981" },
-  "270": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "275": { "prevalence": 4.3, "deaths": "≈4,300/yr", "color": "#10b981" },
-  "276": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#00d4ff" },
-  "288": { "prevalence": 1.4, "deaths": "≈1,400/yr", "color": "#ec4899" },
-  "292": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "296": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#8b5cf6" },
-  "300": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "304": { "prevalence": 4.1, "deaths": "≈4,100/yr", "color": "#a855f7" },
-  "308": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#a855f7" },
-  "312": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#a855f7" },
-  "316": { "prevalence": 3.4, "deaths": "≈3,400/yr", "color": "#8b5cf6" },
-  "320": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#a855f7" },
-  "324": { "prevalence": 1.0, "deaths": "≈1,000/yr", "color": "#ec4899" },
-  "328": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#a855f7" },
-  "332": { "prevalence": 2.1, "deaths": "≈2,100/yr", "color": "#a855f7" },
-  "334": { "prevalence": 3.5, "deaths": "≈3,500/yr", "color": "#8b5cf6" },
-  "336": { "prevalence": 5.2, "deaths": "≈5,200/yr", "color": "#00d4ff" },
-  "340": { "prevalence": 4.2, "deaths": "≈4,200/yr", "color": "#a855f7" },
-  "344": { "prevalence": 3.3, "deaths": "≈3,300/yr", "color": "#10b981" },
-  "348": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#00d4ff" },
-  "352": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#00d4ff" },
-  "356": { "prevalence": 4.4, "deaths": "≈100,000/yr", "color": "#10b981" },
-  "360": { "prevalence": 3.7, "deaths": "≈3,700/yr", "color": "#10b981" },
-  "364": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#10b981" },
-  "368": { "prevalence": 4.1, "deaths": "≈4,100/yr", "color": "#10b981" },
-  "372": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "376": { "prevalence": 4.1, "deaths": "≈4,100/yr", "color": "#10b981" },
-  "380": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "384": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "388": { "prevalence": 4.4, "deaths": "≈4,400/yr", "color": "#a855f7" },
-  "392": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#10b981" },
-  "398": { "prevalence": 4.2, "deaths": "≈4,200/yr", "color": "#10b981" },
-  "400": { "prevalence": 4.1, "deaths": "≈4,100/yr", "color": "#10b981" },
-  "404": { "prevalence": 1.6, "deaths": "≈1,600/yr", "color": "#ec4899" },
-  "408": { "prevalence": 3.2, "deaths": "≈3,200/yr", "color": "#10b981" },
-  "410": { "prevalence": 3.3, "deaths": "≈3,300/yr", "color": "#10b981" },
-  "414": { "prevalence": 4.1, "deaths": "≈4,100/yr", "color": "#10b981" },
-  "417": { "prevalence": 3.0, "deaths": "≈3,000/yr", "color": "#10b981" },
-  "418": { "prevalence": 3.7, "deaths": "≈3,700/yr", "color": "#10b981" },
-  "422": { "prevalence": 4.3, "deaths": "≈4,300/yr", "color": "#10b981" },
-  "426": { "prevalence": 1.8, "deaths": "≈1,800/yr", "color": "#ec4899" },
-  "428": { "prevalence": 5.5, "deaths": "≈5,500/yr", "color": "#00d4ff" },
-  "430": { "prevalence": 1.6, "deaths": "≈1,600/yr", "color": "#ec4899" },
-  "434": { "prevalence": 1.7, "deaths": "≈1,700/yr", "color": "#ec4899" },
-  "438": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#00d4ff" },
-  "440": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "442": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "446": { "prevalence": 3.2, "deaths": "≈3,200/yr", "color": "#10b981" },
-  "450": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "454": { "prevalence": 1.1, "deaths": "≈1,100/yr", "color": "#ec4899" },
-  "458": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#10b981" },
-  "462": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#10b981" },
-  "466": { "prevalence": 1.7, "deaths": "≈1,700/yr", "color": "#ec4899" },
-  "470": { "prevalence": 5.0, "deaths": "≈5,000/yr", "color": "#00d4ff" },
-  "474": { "prevalence": 4.8, "deaths": "≈4,800/yr", "color": "#a855f7" },
-  "478": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "480": { "prevalence": 1.4, "deaths": "≈1,400/yr", "color": "#ec4899" },
-  "484": { "prevalence": 5.0, "deaths": "≈5,000/yr", "color": "#a855f7" },
-  "492": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "496": { "prevalence": 4.2, "deaths": "≈4,200/yr", "color": "#10b981" },
-  "498": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "499": { "prevalence": 5.1, "deaths": "≈5,100/yr", "color": "#00d4ff" },
-  "500": { "prevalence": 4.6, "deaths": "≈4,600/yr", "color": "#a855f7" },
-  "504": { "prevalence": 1.7, "deaths": "≈1,700/yr", "color": "#ec4899" },
-  "508": { "prevalence": 1.4, "deaths": "≈1,400/yr", "color": "#ec4899" },
-  "512": { "prevalence": 3.8, "deaths": "≈3,800/yr", "color": "#10b981" },
-  "516": { "prevalence": 1.8, "deaths": "≈1,800/yr", "color": "#ec4899" },
-  "520": { "prevalence": 2.6, "deaths": "≈2,600/yr", "color": "#8b5cf6" },
-  "524": { "prevalence": 3.8, "deaths": "≈3,800/yr", "color": "#10b981" },
-  "528": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "531": { "prevalence": 2.3, "deaths": "≈2,300/yr", "color": "#a855f7" },
-  "533": { "prevalence": 4.7, "deaths": "≈4,700/yr", "color": "#a855f7" },
-  "534": { "prevalence": 4.2, "deaths": "≈4,200/yr", "color": "#a855f7" },
-  "535": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#a855f7" },
-  "540": { "prevalence": 2.7, "deaths": "≈2,700/yr", "color": "#8b5cf6" },
-  "548": { "prevalence": 2.5, "deaths": "≈2,500/yr", "color": "#8b5cf6" },
-  "554": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#8b5cf6" },
-  "558": { "prevalence": 3.5, "deaths": "≈3,500/yr", "color": "#a855f7" },
-  "562": { "prevalence": 1.6, "deaths": "≈1,600/yr", "color": "#ec4899" },
-  "566": { "prevalence": 1.7, "deaths": "≈1,700/yr", "color": "#ec4899" },
-  "570": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#8b5cf6" },
-  "574": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#8b5cf6" },
-  "578": { "prevalence": 5.2, "deaths": "≈5,200/yr", "color": "#00d4ff" },
-  "580": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#8b5cf6" },
-  "581": { "prevalence": 3.4, "deaths": "≈3,400/yr", "color": "#8b5cf6" },
-  "583": { "prevalence": 2.9, "deaths": "≈2,900/yr", "color": "#8b5cf6" },
-  "584": { "prevalence": 2.6, "deaths": "≈2,600/yr", "color": "#8b5cf6" },
-  "585": { "prevalence": 3.2, "deaths": "≈3,200/yr", "color": "#8b5cf6" },
-  "586": { "prevalence": 3.5, "deaths": "≈3,500/yr", "color": "#10b981" },
-  "591": { "prevalence": 4.7, "deaths": "≈4,700/yr", "color": "#a855f7" },
-  "598": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#8b5cf6" },
-  "600": { "prevalence": 2.7, "deaths": "≈2,700/yr", "color": "#a855f7" },
-  "604": { "prevalence": 3.6, "deaths": "≈3,600/yr", "color": "#a855f7" },
-  "608": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#10b981" },
-  "612": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#8b5cf6" },
-  "616": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#00d4ff" },
-  "620": { "prevalence": 4.8, "deaths": "≈4,800/yr", "color": "#00d4ff" },
-  "624": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "626": { "prevalence": 4.3, "deaths": "≈4,300/yr", "color": "#10b981" },
-  "630": { "prevalence": 2.9, "deaths": "≈2,900/yr", "color": "#a855f7" },
-  "634": { "prevalence": 4.5, "deaths": "≈4,500/yr", "color": "#10b981" },
-  "638": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "642": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "643": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "646": { "prevalence": 1.0, "deaths": "≈1,000/yr", "color": "#ec4899" },
-  "652": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#a855f7" },
-  "654": { "prevalence": 1.5, "deaths": "≈1,500/yr", "color": "#ec4899" },
-  "659": { "prevalence": 2.9, "deaths": "≈2,900/yr", "color": "#a855f7" },
-  "660": { "prevalence": 3.2, "deaths": "≈3,200/yr", "color": "#a855f7" },
-  "662": { "prevalence": 3.7, "deaths": "≈3,700/yr", "color": "#a855f7" },
-  "663": { "prevalence": 4.4, "deaths": "≈4,400/yr", "color": "#a855f7" },
-  "666": { "prevalence": 3.2, "deaths": "≈3,200/yr", "color": "#a855f7" },
-  "670": { "prevalence": 4.6, "deaths": "≈4,600/yr", "color": "#a855f7" },
-  "674": { "prevalence": 5.5, "deaths": "≈5,500/yr", "color": "#00d4ff" },
-  "678": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "682": { "prevalence": 3.2, "deaths": "≈3,200/yr", "color": "#10b981" },
-  "686": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "688": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#00d4ff" },
-  "690": { "prevalence": 1.0, "deaths": "≈1,000/yr", "color": "#ec4899" },
-  "694": { "prevalence": 1.6, "deaths": "≈1,600/yr", "color": "#ec4899" },
-  "702": { "prevalence": 3.6, "deaths": "≈3,600/yr", "color": "#10b981" },
-  "703": { "prevalence": 5.2, "deaths": "≈5,200/yr", "color": "#00d4ff" },
-  "704": { "prevalence": 3.4, "deaths": "≈3,400/yr", "color": "#10b981" },
-  "705": { "prevalence": 4.8, "deaths": "≈4,800/yr", "color": "#00d4ff" },
-  "706": { "prevalence": 1.1, "deaths": "≈1,100/yr", "color": "#ec4899" },
-  "710": { "prevalence": 1.5, "deaths": "≈1,500/yr", "color": "#ec4899" },
-  "716": { "prevalence": 1.1, "deaths": "≈1,100/yr", "color": "#ec4899" },
-  "724": { "prevalence": 5.2, "deaths": "≈5,200/yr", "color": "#00d4ff" },
-  "728": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "729": { "prevalence": 1.7, "deaths": "≈1,700/yr", "color": "#ec4899" },
-  "732": { "prevalence": 1.5, "deaths": "≈1,500/yr", "color": "#ec4899" },
-  "740": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#a855f7" },
-  "744": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#00d4ff" },
-  "748": { "prevalence": 1.0, "deaths": "≈1,000/yr", "color": "#ec4899" },
-  "752": { "prevalence": 5.0, "deaths": "≈5,000/yr", "color": "#00d4ff" },
-  "756": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "760": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#10b981" },
-  "762": { "prevalence": 4.0, "deaths": "≈4,000/yr", "color": "#10b981" },
-  "764": { "prevalence": 3.3, "deaths": "≈3,300/yr", "color": "#10b981" },
-  "768": { "prevalence": 1.3, "deaths": "≈1,300/yr", "color": "#ec4899" },
-  "772": { "prevalence": 2.6, "deaths": "≈2,600/yr", "color": "#8b5cf6" },
-  "776": { "prevalence": 2.7, "deaths": "≈2,700/yr", "color": "#8b5cf6" },
-  "780": { "prevalence": 3.7, "deaths": "≈3,700/yr", "color": "#a855f7" },
-  "784": { "prevalence": 4.2, "deaths": "≈4,200/yr", "color": "#10b981" },
-  "788": { "prevalence": 1.1, "deaths": "≈1,100/yr", "color": "#ec4899" },
-  "792": { "prevalence": 4.4, "deaths": "≈4,400/yr", "color": "#10b981" },
-  "795": { "prevalence": 3.5, "deaths": "≈3,500/yr", "color": "#10b981" },
-  "796": { "prevalence": 3.2, "deaths": "≈3,200/yr", "color": "#a855f7" },
-  "798": { "prevalence": 3.5, "deaths": "≈3,500/yr", "color": "#8b5cf6" },
-  "800": { "prevalence": 1.5, "deaths": "≈1,500/yr", "color": "#ec4899" },
-  "804": { "prevalence": 5.2, "deaths": "≈5,200/yr", "color": "#00d4ff" },
-  "807": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "818": { "prevalence": 1.1, "deaths": "≈1,100/yr", "color": "#ec4899" },
-  "826": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "831": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "832": { "prevalence": 4.9, "deaths": "≈4,900/yr", "color": "#00d4ff" },
-  "833": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "834": { "prevalence": 1.7, "deaths": "≈1,700/yr", "color": "#ec4899" },
-  "840": { "prevalence": 5.4, "deaths": "≈35,000/yr", "color": "#a855f7" },
-  "850": { "prevalence": 4.0, "deaths": "≈4,000/yr", "color": "#a855f7" },
-  "854": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "858": { "prevalence": 2.6, "deaths": "≈2,600/yr", "color": "#a855f7" },
-  "860": { "prevalence": 4.0, "deaths": "≈4,000/yr", "color": "#10b981" },
-  "862": { "prevalence": 4.4, "deaths": "≈4,400/yr", "color": "#a855f7" },
-  "876": { "prevalence": 3.0, "deaths": "≈3,000/yr", "color": "#8b5cf6" },
-  "882": { "prevalence": 2.7, "deaths": "≈2,700/yr", "color": "#8b5cf6" },
-  "887": { "prevalence": 3.2, "deaths": "≈3,200/yr", "color": "#10b981" },
-  "894": { "prevalence": 1.5, "deaths": "≈1,500/yr", "color": "#ec4899" },
-  "004": { "prevalence": 3.7, "deaths": "≈3,700/yr", "color": "#10b981" },
-  "008": { "prevalence": 5.2, "deaths": "≈5,200/yr", "color": "#00d4ff" },
-  "012": { "prevalence": 1.6, "deaths": "≈1,600/yr", "color": "#ec4899" },
-  "016": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#8b5cf6" },
-  "020": { "prevalence": 5.4, "deaths": "≈5,400/yr", "color": "#00d4ff" },
-  "024": { "prevalence": 1.2, "deaths": "≈1,200/yr", "color": "#ec4899" },
-  "010": { "prevalence": 2.5, "deaths": "≈2,500/yr", "color": "#1f2937" },
-  "028": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#a855f7" },
-  "032": { "prevalence": 4.0, "deaths": "≈4,000/yr", "color": "#a855f7" },
-  "051": { "prevalence": 3.0, "deaths": "≈3,000/yr", "color": "#10b981" },
-  "036": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#8b5cf6" },
-  "040": { "prevalence": 4.8, "deaths": "≈4,800/yr", "color": "#00d4ff" },
-  "031": { "prevalence": 4.1, "deaths": "≈4,100/yr", "color": "#10b981" },
-  "044": { "prevalence": 3.3, "deaths": "≈3,300/yr", "color": "#a855f7" },
-  "048": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#10b981" },
-  "050": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#10b981" },
-  "052": { "prevalence": 4.2, "deaths": "≈4,200/yr", "color": "#a855f7" },
-  "056": { "prevalence": 5.0, "deaths": "≈5,000/yr", "color": "#00d4ff" },
-  "084": { "prevalence": 2.4, "deaths": "≈2,400/yr", "color": "#a855f7" },
-  "060": { "prevalence": 2.4, "deaths": "≈2,400/yr", "color": "#a855f7" },
-  "064": { "prevalence": 3.7, "deaths": "≈3,700/yr", "color": "#10b981" },
-  "068": { "prevalence": 2.8, "deaths": "≈2,800/yr", "color": "#a855f7" },
-  "070": { "prevalence": 5.3, "deaths": "≈5,300/yr", "color": "#00d4ff" },
-  "072": { "prevalence": 1.6, "deaths": "≈1,600/yr", "color": "#ec4899" },
-  "074": { "prevalence": 3.5, "deaths": "≈3,500/yr", "color": "#a855f7" },
-  "076": { "prevalence": 3.9, "deaths": "≈3,900/yr", "color": "#a855f7" },
-  "086": { "prevalence": 1.4, "deaths": "≈1,400/yr", "color": "#ec4899" },
-  "096": { "prevalence": 3.1, "deaths": "≈3,100/yr", "color": "#10b981" },
-  "090": { "prevalence": 3.3, "deaths": "≈3,300/yr", "color": "#8b5cf6" },
-  "092": { "prevalence": 3.6, "deaths": "≈3,600/yr", "color": "#a855f7" }
+const MAP_DATA: Record<string, { name: string, alpha2: string, prevalence: number, deaths: string, color: string, trend: number[] }> = {
+  "100": {
+    "name": "Bulgaria",
+    "alpha2": "bg",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4,
+      3.9,
+      4.2,
+      4.2,
+      4.4
+    ]
+  },
+  "104": {
+    "name": "Myanmar",
+    "alpha2": "mm",
+    "prevalence": 4.1,
+    "deaths": "≈4,100/yr",
+    "color": "#10b981",
+    "trend": [
+      3.3,
+      3.5,
+      3.5,
+      3.6,
+      3.7
+    ]
+  },
+  "108": {
+    "name": "Burundi",
+    "alpha2": "bi",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.2,
+      1.2,
+      1.2,
+      1.2
+    ]
+  },
+  "112": {
+    "name": "Belarus",
+    "alpha2": "by",
+    "prevalence": 5.4,
+    "deaths": "≈5,400/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.4,
+      4.2,
+      4.4,
+      4.8,
+      4.8
+    ]
+  },
+  "116": {
+    "name": "Cambodia",
+    "alpha2": "kh",
+    "prevalence": 3.2,
+    "deaths": "≈3,200/yr",
+    "color": "#10b981",
+    "trend": [
+      2.5,
+      2.5,
+      2.6,
+      2.7,
+      2.8
+    ]
+  },
+  "120": {
+    "name": "Cameroon",
+    "alpha2": "cm",
+    "prevalence": 1.4,
+    "deaths": "≈1,400/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.2,
+      1.1,
+      1.2,
+      1.3
+    ]
+  },
+  "124": {
+    "name": "Canada",
+    "alpha2": "ca",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      4.2,
+      3.9,
+      4.3,
+      4.3,
+      4.4
+    ]
+  },
+  "132": {
+    "name": "Cabo Verde",
+    "alpha2": "cv",
+    "prevalence": 1.2,
+    "deaths": "≈1,200/yr",
+    "color": "#ec4899",
+    "trend": [
+      1,
+      1,
+      1,
+      1.1,
+      1
+    ]
+  },
+  "136": {
+    "name": "Cayman Islands",
+    "alpha2": "ky",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.9,
+      2.9,
+      2.8,
+      2.8,
+      2.9
+    ]
+  },
+  "140": {
+    "name": "Central African Republic",
+    "alpha2": "cf",
+    "prevalence": 1.8,
+    "deaths": "≈1,800/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.5,
+      1.4,
+      1.5,
+      1.5,
+      1.5
+    ]
+  },
+  "144": {
+    "name": "Sri Lanka",
+    "alpha2": "lk",
+    "prevalence": 3.6,
+    "deaths": "≈3,600/yr",
+    "color": "#10b981",
+    "trend": [
+      2.9,
+      3,
+      3,
+      3.1,
+      3.1
+    ]
+  },
+  "148": {
+    "name": "Chad",
+    "alpha2": "td",
+    "prevalence": 1.7,
+    "deaths": "≈1,700/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.3,
+      1.4,
+      1.4,
+      1.4,
+      1.5
+    ]
+  },
+  "152": {
+    "name": "Chile",
+    "alpha2": "cl",
+    "prevalence": 2.3,
+    "deaths": "≈2,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.8,
+      1.9,
+      1.8,
+      2,
+      2
+    ]
+  },
+  "156": {
+    "name": "China",
+    "alpha2": "cn",
+    "prevalence": 4.1,
+    "deaths": "≈4,100/yr",
+    "color": "#10b981",
+    "trend": [
+      3.3,
+      3.3,
+      3.5,
+      3.4,
+      3.7
+    ]
+  },
+  "158": {
+    "name": "Taiwan, Province of China",
+    "alpha2": "tw",
+    "prevalence": 2.5,
+    "deaths": "≈2,500/yr",
+    "color": "#1f2937",
+    "trend": [
+      2,
+      2,
+      2,
+      2.2,
+      2.2
+    ]
+  },
+  "162": {
+    "name": "Christmas Island",
+    "alpha2": "cx",
+    "prevalence": 2.9,
+    "deaths": "≈2,900/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.3,
+      2.3,
+      2.4,
+      2.4,
+      2.4
+    ]
+  },
+  "166": {
+    "name": "Cocos (Keeling) Islands",
+    "alpha2": "cc",
+    "prevalence": 3.2,
+    "deaths": "≈3,200/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.6,
+      2.6,
+      2.6,
+      2.8,
+      2.8
+    ]
+  },
+  "170": {
+    "name": "Colombia",
+    "alpha2": "co",
+    "prevalence": 2.6,
+    "deaths": "≈2,600/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.1,
+      2.2,
+      2.2,
+      2.2,
+      2.2
+    ]
+  },
+  "174": {
+    "name": "Comoros",
+    "alpha2": "km",
+    "prevalence": 1.6,
+    "deaths": "≈1,600/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.3,
+      1.3,
+      1.4,
+      1.4,
+      1.4
+    ]
+  },
+  "175": {
+    "name": "Mayotte",
+    "alpha2": "yt",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.3,
+      1.3,
+      1.3,
+      1.2
+    ]
+  },
+  "178": {
+    "name": "Congo",
+    "alpha2": "cg",
+    "prevalence": 1.6,
+    "deaths": "≈1,600/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.3,
+      1.3,
+      1.4,
+      1.4
+    ]
+  },
+  "180": {
+    "name": "Congo, Democratic Republic of the",
+    "alpha2": "cd",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      0.9,
+      0.9,
+      1,
+      1
+    ]
+  },
+  "184": {
+    "name": "Cook Islands",
+    "alpha2": "ck",
+    "prevalence": 2.6,
+    "deaths": "≈2,600/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.1,
+      2.1,
+      2.2,
+      2.3,
+      2.3
+    ]
+  },
+  "188": {
+    "name": "Costa Rica",
+    "alpha2": "cr",
+    "prevalence": 4.7,
+    "deaths": "≈4,700/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.9,
+      3.8,
+      4,
+      3.8,
+      4.2
+    ]
+  },
+  "191": {
+    "name": "Croatia",
+    "alpha2": "hr",
+    "prevalence": 5.2,
+    "deaths": "≈5,200/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.4,
+      4.2,
+      4.6,
+      4.3
+    ]
+  },
+  "192": {
+    "name": "Cuba",
+    "alpha2": "cu",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.3,
+      3.4,
+      3.3,
+      3.5,
+      3.5
+    ]
+  },
+  "196": {
+    "name": "Cyprus",
+    "alpha2": "cy",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#10b981",
+    "trend": [
+      3.2,
+      3.3,
+      3.4,
+      3.3,
+      3.3
+    ]
+  },
+  "203": {
+    "name": "Czechia",
+    "alpha2": "cz",
+    "prevalence": 5.4,
+    "deaths": "≈5,400/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.4,
+      4.2,
+      4.5,
+      4.8,
+      4.6
+    ]
+  },
+  "204": {
+    "name": "Benin",
+    "alpha2": "bj",
+    "prevalence": 1.7,
+    "deaths": "≈1,700/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.4,
+      1.4,
+      1.3,
+      1.5,
+      1.5
+    ]
+  },
+  "208": {
+    "name": "Denmark",
+    "alpha2": "dk",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.3,
+      4.2,
+      4.2,
+      4.3
+    ]
+  },
+  "212": {
+    "name": "Dominica",
+    "alpha2": "dm",
+    "prevalence": 2.1,
+    "deaths": "≈2,100/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.7,
+      1.7,
+      1.8,
+      1.8,
+      1.8
+    ]
+  },
+  "214": {
+    "name": "Dominican Republic",
+    "alpha2": "do",
+    "prevalence": 4.1,
+    "deaths": "≈4,100/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.3,
+      3.3,
+      3.3,
+      3.6,
+      3.5
+    ]
+  },
+  "218": {
+    "name": "Ecuador",
+    "alpha2": "ec",
+    "prevalence": 2.1,
+    "deaths": "≈2,100/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.7,
+      1.7,
+      1.7,
+      1.7,
+      1.8
+    ]
+  },
+  "222": {
+    "name": "El Salvador",
+    "alpha2": "sv",
+    "prevalence": 3.8,
+    "deaths": "≈3,800/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.2,
+      3.2,
+      3.2,
+      3.3,
+      3.4
+    ]
+  },
+  "226": {
+    "name": "Equatorial Guinea",
+    "alpha2": "gq",
+    "prevalence": 1.7,
+    "deaths": "≈1,700/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.4,
+      1.3,
+      1.4,
+      1.4,
+      1.5
+    ]
+  },
+  "231": {
+    "name": "Ethiopia",
+    "alpha2": "et",
+    "prevalence": 1.4,
+    "deaths": "≈1,400/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.1,
+      1.1,
+      1.1,
+      1.2
+    ]
+  },
+  "232": {
+    "name": "Eritrea",
+    "alpha2": "er",
+    "prevalence": 1.8,
+    "deaths": "≈1,800/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.4,
+      1.5,
+      1.5,
+      1.6,
+      1.6
+    ]
+  },
+  "233": {
+    "name": "Estonia",
+    "alpha2": "ee",
+    "prevalence": 4.9,
+    "deaths": "≈4,900/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.1,
+      4.1,
+      4.2,
+      4.2,
+      4.3
+    ]
+  },
+  "234": {
+    "name": "Faroe Islands",
+    "alpha2": "fo",
+    "prevalence": 5.5,
+    "deaths": "≈5,500/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.5,
+      4.4,
+      4.5,
+      4.5,
+      4.8
+    ]
+  },
+  "238": {
+    "name": "Falkland Islands (Malvinas)",
+    "alpha2": "fk",
+    "prevalence": 2.4,
+    "deaths": "≈2,400/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.9,
+      1.9,
+      1.9,
+      2.1,
+      2
+    ]
+  },
+  "239": {
+    "name": "South Georgia and the South Sandwich Islands",
+    "alpha2": "gs",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.8,
+      2.8,
+      2.8,
+      2.9,
+      3
+    ]
+  },
+  "242": {
+    "name": "Fiji",
+    "alpha2": "fj",
+    "prevalence": 2.7,
+    "deaths": "≈2,700/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.1,
+      2.2,
+      2.2,
+      2.2,
+      2.4
+    ]
+  },
+  "246": {
+    "name": "Finland",
+    "alpha2": "fi",
+    "prevalence": 5.2,
+    "deaths": "≈5,200/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.3,
+      4.3,
+      4.2,
+      4.4
+    ]
+  },
+  "248": {
+    "name": "Åland Islands",
+    "alpha2": "ax",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.1,
+      4,
+      4.1,
+      4.2,
+      4.2
+    ]
+  },
+  "250": {
+    "name": "France",
+    "alpha2": "fr",
+    "prevalence": 5.4,
+    "deaths": "≈5,400/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4.4,
+      4.7,
+      4.7,
+      4.6
+    ]
+  },
+  "254": {
+    "name": "French Guiana",
+    "alpha2": "gf",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      4.2,
+      4.1,
+      4.2,
+      4.5,
+      4.3
+    ]
+  },
+  "258": {
+    "name": "French Polynesia",
+    "alpha2": "pf",
+    "prevalence": 2.6,
+    "deaths": "≈2,600/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2,
+      2.2,
+      2.1,
+      2.2,
+      2.2
+    ]
+  },
+  "260": {
+    "name": "French Southern Territories",
+    "alpha2": "tf",
+    "prevalence": 1.7,
+    "deaths": "≈1,700/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.4,
+      1.4,
+      1.5,
+      1.4,
+      1.5
+    ]
+  },
+  "262": {
+    "name": "Djibouti",
+    "alpha2": "dj",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.8,
+      0.9,
+      0.9,
+      0.9,
+      0.9
+    ]
+  },
+  "266": {
+    "name": "Gabon",
+    "alpha2": "ga",
+    "prevalence": 1.4,
+    "deaths": "≈1,400/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.1,
+      1.1,
+      1.2,
+      1.2
+    ]
+  },
+  "268": {
+    "name": "Georgia",
+    "alpha2": "ge",
+    "prevalence": 4.2,
+    "deaths": "≈4,200/yr",
+    "color": "#10b981",
+    "trend": [
+      3.4,
+      3.6,
+      3.4,
+      3.4,
+      3.6
+    ]
+  },
+  "270": {
+    "name": "Gambia",
+    "alpha2": "gm",
+    "prevalence": 1.3,
+    "deaths": "≈1,300/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.1,
+      1.1,
+      1.1,
+      1.2
+    ]
+  },
+  "275": {
+    "name": "Palestine, State of",
+    "alpha2": "ps",
+    "prevalence": 4.5,
+    "deaths": "≈4,500/yr",
+    "color": "#10b981",
+    "trend": [
+      3.6,
+      3.6,
+      3.7,
+      4,
+      3.8
+    ]
+  },
+  "276": {
+    "name": "Germany",
+    "alpha2": "de",
+    "prevalence": 5.4,
+    "deaths": "≈5,400/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.5,
+      4.6,
+      4.5,
+      4.6,
+      4.8
+    ]
+  },
+  "288": {
+    "name": "Ghana",
+    "alpha2": "gh",
+    "prevalence": 1.3,
+    "deaths": "≈1,300/yr",
+    "color": "#ec4899",
+    "trend": [
+      1,
+      1.1,
+      1,
+      1.1,
+      1.2
+    ]
+  },
+  "292": {
+    "name": "Gibraltar",
+    "alpha2": "gi",
+    "prevalence": 5.3,
+    "deaths": "≈5,300/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4.2,
+      4.5,
+      4.5,
+      4.4
+    ]
+  },
+  "296": {
+    "name": "Kiribati",
+    "alpha2": "ki",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.6,
+      2.8,
+      2.8,
+      2.8,
+      3
+    ]
+  },
+  "300": {
+    "name": "Greece",
+    "alpha2": "gr",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.1,
+      4.2,
+      4.1,
+      4.1,
+      4.4
+    ]
+  },
+  "304": {
+    "name": "Greenland",
+    "alpha2": "gl",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.4,
+      2.3,
+      2.6,
+      2.4,
+      2.5
+    ]
+  },
+  "308": {
+    "name": "Grenada",
+    "alpha2": "gd",
+    "prevalence": 2.4,
+    "deaths": "≈2,400/yr",
+    "color": "#a855f7",
+    "trend": [
+      2,
+      1.9,
+      2,
+      2.1,
+      2
+    ]
+  },
+  "312": {
+    "name": "Guadeloupe",
+    "alpha2": "gp",
+    "prevalence": 2.9,
+    "deaths": "≈2,900/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.4,
+      2.3,
+      2.3,
+      2.4,
+      2.6
+    ]
+  },
+  "316": {
+    "name": "Guam",
+    "alpha2": "gu",
+    "prevalence": 2.7,
+    "deaths": "≈2,700/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.2,
+      2.2,
+      2.2,
+      2.4,
+      2.3
+    ]
+  },
+  "320": {
+    "name": "Guatemala",
+    "alpha2": "gt",
+    "prevalence": 4.7,
+    "deaths": "≈4,700/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.8,
+      3.9,
+      3.9,
+      4.1,
+      4
+    ]
+  },
+  "324": {
+    "name": "Guinea",
+    "alpha2": "gn",
+    "prevalence": 1.2,
+    "deaths": "≈1,200/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      1,
+      1,
+      1.1,
+      1.1
+    ]
+  },
+  "328": {
+    "name": "Guyana",
+    "alpha2": "gy",
+    "prevalence": 2.1,
+    "deaths": "≈2,100/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.7,
+      1.7,
+      1.8,
+      1.8,
+      1.8
+    ]
+  },
+  "332": {
+    "name": "Haiti",
+    "alpha2": "ht",
+    "prevalence": 4.3,
+    "deaths": "≈4,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.3,
+      3.6,
+      3.7,
+      3.5,
+      3.6
+    ]
+  },
+  "334": {
+    "name": "Heard Island and McDonald Islands",
+    "alpha2": "hm",
+    "prevalence": 3.3,
+    "deaths": "≈3,300/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.5,
+      2.8,
+      2.6,
+      2.7,
+      2.9
+    ]
+  },
+  "336": {
+    "name": "Holy See",
+    "alpha2": "va",
+    "prevalence": 5.4,
+    "deaths": "≈5,400/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.4,
+      4.3,
+      4.5,
+      4.7,
+      4.9
+    ]
+  },
+  "340": {
+    "name": "Honduras",
+    "alpha2": "hn",
+    "prevalence": 2.3,
+    "deaths": "≈2,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.9,
+      1.8,
+      1.9,
+      1.9,
+      2
+    ]
+  },
+  "344": {
+    "name": "Hong Kong",
+    "alpha2": "hk",
+    "prevalence": 3.3,
+    "deaths": "≈3,300/yr",
+    "color": "#10b981",
+    "trend": [
+      2.5,
+      2.8,
+      2.8,
+      2.9,
+      2.9
+    ]
+  },
+  "348": {
+    "name": "Hungary",
+    "alpha2": "hu",
+    "prevalence": 5.4,
+    "deaths": "≈5,400/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4.4,
+      4.7,
+      4.5,
+      4.8
+    ]
+  },
+  "352": {
+    "name": "Iceland",
+    "alpha2": "is",
+    "prevalence": 4.8,
+    "deaths": "≈4,800/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.9,
+      3.7,
+      3.9,
+      4.1,
+      4.2
+    ]
+  },
+  "356": {
+    "name": "India",
+    "alpha2": "in",
+    "prevalence": 3.3,
+    "deaths": "≈100,000/yr",
+    "color": "#10b981",
+    "trend": [
+      2.5,
+      2.7,
+      2.8,
+      2.8,
+      2.8
+    ]
+  },
+  "360": {
+    "name": "Indonesia",
+    "alpha2": "id",
+    "prevalence": 3.1,
+    "deaths": "≈3,100/yr",
+    "color": "#10b981",
+    "trend": [
+      2.4,
+      2.6,
+      2.6,
+      2.6,
+      2.8
+    ]
+  },
+  "364": {
+    "name": "Iran, Islamic Republic of",
+    "alpha2": "ir",
+    "prevalence": 4.1,
+    "deaths": "≈4,100/yr",
+    "color": "#10b981",
+    "trend": [
+      3.4,
+      3.2,
+      3.4,
+      3.4,
+      3.6
+    ]
+  },
+  "368": {
+    "name": "Iraq",
+    "alpha2": "iq",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#10b981",
+    "trend": [
+      2.4,
+      2.4,
+      2.6,
+      2.5,
+      2.6
+    ]
+  },
+  "372": {
+    "name": "Ireland",
+    "alpha2": "ie",
+    "prevalence": 5.3,
+    "deaths": "≈5,300/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.1,
+      4.4,
+      4.2,
+      4.4,
+      4.7
+    ]
+  },
+  "376": {
+    "name": "Israel",
+    "alpha2": "il",
+    "prevalence": 4.3,
+    "deaths": "≈4,300/yr",
+    "color": "#10b981",
+    "trend": [
+      3.5,
+      3.6,
+      3.4,
+      3.7,
+      3.6
+    ]
+  },
+  "380": {
+    "name": "Italy",
+    "alpha2": "it",
+    "prevalence": 4.9,
+    "deaths": "≈4,900/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.8,
+      3.8,
+      4.1,
+      4.3,
+      4.4
+    ]
+  },
+  "384": {
+    "name": "Côte d'Ivoire",
+    "alpha2": "ci",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      0.9,
+      0.9,
+      1,
+      0.9
+    ]
+  },
+  "388": {
+    "name": "Jamaica",
+    "alpha2": "jm",
+    "prevalence": 2.8,
+    "deaths": "≈2,800/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.3,
+      2.2,
+      2.4,
+      2.4,
+      2.4
+    ]
+  },
+  "392": {
+    "name": "Japan",
+    "alpha2": "jp",
+    "prevalence": 5.5,
+    "deaths": "≈5,500/yr",
+    "color": "#10b981",
+    "trend": [
+      4.4,
+      4.3,
+      4.6,
+      4.6,
+      5
+    ]
+  },
+  "398": {
+    "name": "Kazakhstan",
+    "alpha2": "kz",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#10b981",
+    "trend": [
+      2.4,
+      2.4,
+      2.4,
+      2.6,
+      2.7
+    ]
+  },
+  "400": {
+    "name": "Jordan",
+    "alpha2": "jo",
+    "prevalence": 3.5,
+    "deaths": "≈3,500/yr",
+    "color": "#10b981",
+    "trend": [
+      2.8,
+      2.7,
+      2.8,
+      2.9,
+      2.9
+    ]
+  },
+  "404": {
+    "name": "Kenya",
+    "alpha2": "ke",
+    "prevalence": 1.6,
+    "deaths": "≈1,600/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.3,
+      1.3,
+      1.4,
+      1.3,
+      1.4
+    ]
+  },
+  "408": {
+    "name": "Korea, Democratic People's Republic of",
+    "alpha2": "kp",
+    "prevalence": 4.2,
+    "deaths": "≈4,200/yr",
+    "color": "#10b981",
+    "trend": [
+      3.5,
+      3.3,
+      3.3,
+      3.7,
+      3.6
+    ]
+  },
+  "410": {
+    "name": "Korea, Republic of",
+    "alpha2": "kr",
+    "prevalence": 4.2,
+    "deaths": "≈4,200/yr",
+    "color": "#10b981",
+    "trend": [
+      3.3,
+      3.4,
+      3.5,
+      3.6,
+      3.6
+    ]
+  },
+  "414": {
+    "name": "Kuwait",
+    "alpha2": "kw",
+    "prevalence": 3.3,
+    "deaths": "≈3,300/yr",
+    "color": "#10b981",
+    "trend": [
+      2.7,
+      2.7,
+      2.7,
+      2.8,
+      2.9
+    ]
+  },
+  "417": {
+    "name": "Kyrgyzstan",
+    "alpha2": "kg",
+    "prevalence": 3.7,
+    "deaths": "≈3,700/yr",
+    "color": "#10b981",
+    "trend": [
+      3.1,
+      2.9,
+      3.2,
+      3.1,
+      3.2
+    ]
+  },
+  "418": {
+    "name": "Lao People's Democratic Republic",
+    "alpha2": "la",
+    "prevalence": 4.2,
+    "deaths": "≈4,200/yr",
+    "color": "#10b981",
+    "trend": [
+      3.4,
+      3.5,
+      3.5,
+      3.5,
+      3.6
+    ]
+  },
+  "422": {
+    "name": "Lebanon",
+    "alpha2": "lb",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#10b981",
+    "trend": [
+      3.4,
+      3.3,
+      3.3,
+      3.4,
+      3.6
+    ]
+  },
+  "426": {
+    "name": "Lesotho",
+    "alpha2": "ls",
+    "prevalence": 1.6,
+    "deaths": "≈1,600/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.3,
+      1.3,
+      1.3,
+      1.3
+    ]
+  },
+  "428": {
+    "name": "Latvia",
+    "alpha2": "lv",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4,
+      4.1,
+      4,
+      4.1,
+      4.4
+    ]
+  },
+  "430": {
+    "name": "Liberia",
+    "alpha2": "lr",
+    "prevalence": 1.4,
+    "deaths": "≈1,400/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.1,
+      1.1,
+      1.2,
+      1.2
+    ]
+  },
+  "434": {
+    "name": "Libya",
+    "alpha2": "ly",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.3,
+      1.2,
+      1.3,
+      1.3
+    ]
+  },
+  "438": {
+    "name": "Liechtenstein",
+    "alpha2": "li",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4,
+      4.2,
+      4.4,
+      4.4
+    ]
+  },
+  "440": {
+    "name": "Lithuania",
+    "alpha2": "lt",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.3,
+      4.1,
+      4.4,
+      4.3
+    ]
+  },
+  "442": {
+    "name": "Luxembourg",
+    "alpha2": "lu",
+    "prevalence": 5.5,
+    "deaths": "≈5,500/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.6,
+      4.5,
+      4.7,
+      4.8
+    ]
+  },
+  "446": {
+    "name": "Macao",
+    "alpha2": "mo",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#10b981",
+    "trend": [
+      3.1,
+      3.2,
+      3.3,
+      3.3,
+      3.3
+    ]
+  },
+  "450": {
+    "name": "Madagascar",
+    "alpha2": "mg",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.3,
+      1.2,
+      1.3,
+      1.3,
+      1.3
+    ]
+  },
+  "454": {
+    "name": "Malawi",
+    "alpha2": "mw",
+    "prevalence": 1,
+    "deaths": "≈1,000/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.8,
+      0.8,
+      0.8,
+      0.9,
+      0.8
+    ]
+  },
+  "458": {
+    "name": "Malaysia",
+    "alpha2": "my",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#10b981",
+    "trend": [
+      3.3,
+      3.2,
+      3.4,
+      3.5,
+      3.3
+    ]
+  },
+  "462": {
+    "name": "Maldives",
+    "alpha2": "mv",
+    "prevalence": 4.3,
+    "deaths": "≈4,300/yr",
+    "color": "#10b981",
+    "trend": [
+      3.5,
+      3.6,
+      3.7,
+      3.5,
+      3.7
+    ]
+  },
+  "466": {
+    "name": "Mali",
+    "alpha2": "ml",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.2,
+      1.3,
+      1.3,
+      1.3
+    ]
+  },
+  "470": {
+    "name": "Malta",
+    "alpha2": "mt",
+    "prevalence": 5.3,
+    "deaths": "≈5,300/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4,
+      4.5,
+      4.3,
+      4.4,
+      4.6
+    ]
+  },
+  "474": {
+    "name": "Martinique",
+    "alpha2": "mq",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.7,
+      2.7,
+      2.9,
+      2.9,
+      2.8
+    ]
+  },
+  "478": {
+    "name": "Mauritania",
+    "alpha2": "mr",
+    "prevalence": 1.2,
+    "deaths": "≈1,200/yr",
+    "color": "#ec4899",
+    "trend": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "480": {
+    "name": "Mauritius",
+    "alpha2": "mu",
+    "prevalence": 1.4,
+    "deaths": "≈1,400/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.1,
+      1.2,
+      1.2,
+      1.2
+    ]
+  },
+  "484": {
+    "name": "Mexico",
+    "alpha2": "mx",
+    "prevalence": 3.6,
+    "deaths": "≈3,600/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.8,
+      3,
+      2.9,
+      3.2,
+      3
+    ]
+  },
+  "492": {
+    "name": "Monaco",
+    "alpha2": "mc",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.1,
+      4,
+      4.3,
+      4.4,
+      4.1
+    ]
+  },
+  "496": {
+    "name": "Mongolia",
+    "alpha2": "mn",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#10b981",
+    "trend": [
+      2.3,
+      2.5,
+      2.5,
+      2.6,
+      2.7
+    ]
+  },
+  "498": {
+    "name": "Moldova, Republic of",
+    "alpha2": "md",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4.4,
+      4.1,
+      4.5,
+      4.2
+    ]
+  },
+  "499": {
+    "name": "Montenegro",
+    "alpha2": "me",
+    "prevalence": 5.3,
+    "deaths": "≈5,300/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.4,
+      4.5,
+      4.6,
+      4.7
+    ]
+  },
+  "500": {
+    "name": "Montserrat",
+    "alpha2": "ms",
+    "prevalence": 2.2,
+    "deaths": "≈2,200/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.7,
+      1.8,
+      1.9,
+      1.8,
+      1.9
+    ]
+  },
+  "504": {
+    "name": "Morocco",
+    "alpha2": "ma",
+    "prevalence": 1.6,
+    "deaths": "≈1,600/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.3,
+      1.3,
+      1.3,
+      1.3,
+      1.4
+    ]
+  },
+  "508": {
+    "name": "Mozambique",
+    "alpha2": "mz",
+    "prevalence": 1,
+    "deaths": "≈1,000/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.8,
+      0.8,
+      0.9,
+      0.9,
+      0.9
+    ]
+  },
+  "512": {
+    "name": "Oman",
+    "alpha2": "om",
+    "prevalence": 3.9,
+    "deaths": "≈3,900/yr",
+    "color": "#10b981",
+    "trend": [
+      3.1,
+      3,
+      3.3,
+      3.4,
+      3.5
+    ]
+  },
+  "516": {
+    "name": "Namibia",
+    "alpha2": "na",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.2,
+      1.2,
+      1.2,
+      1.3
+    ]
+  },
+  "520": {
+    "name": "Nauru",
+    "alpha2": "nr",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.4,
+      2.4,
+      2.4,
+      2.6,
+      2.6
+    ]
+  },
+  "524": {
+    "name": "Nepal",
+    "alpha2": "np",
+    "prevalence": 4.4,
+    "deaths": "≈4,400/yr",
+    "color": "#10b981",
+    "trend": [
+      3.4,
+      3.4,
+      3.7,
+      3.8,
+      3.9
+    ]
+  },
+  "528": {
+    "name": "Netherlands, Kingdom of the",
+    "alpha2": "nl",
+    "prevalence": 5.4,
+    "deaths": "≈5,400/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.2,
+      4.4,
+      4.4,
+      4.7
+    ]
+  },
+  "531": {
+    "name": "Curaçao",
+    "alpha2": "cw",
+    "prevalence": 3.8,
+    "deaths": "≈3,800/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.2,
+      3.1,
+      3.2,
+      3.1,
+      3.4
+    ]
+  },
+  "533": {
+    "name": "Aruba",
+    "alpha2": "aw",
+    "prevalence": 2.3,
+    "deaths": "≈2,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.8,
+      1.8,
+      1.8,
+      2,
+      2
+    ]
+  },
+  "534": {
+    "name": "Sint Maarten (Dutch part)",
+    "alpha2": "sx",
+    "prevalence": 3.3,
+    "deaths": "≈3,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.7,
+      2.7,
+      2.9,
+      2.7,
+      2.9
+    ]
+  },
+  "535": {
+    "name": "Bonaire, Sint Eustatius and Saba",
+    "alpha2": "bq",
+    "prevalence": 3.6,
+    "deaths": "≈3,600/yr",
+    "color": "#a855f7",
+    "trend": [
+      3,
+      2.8,
+      3,
+      2.9,
+      3
+    ]
+  },
+  "540": {
+    "name": "New Caledonia",
+    "alpha2": "nc",
+    "prevalence": 3.3,
+    "deaths": "≈3,300/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.6,
+      2.7,
+      2.8,
+      2.9,
+      2.7
+    ]
+  },
+  "548": {
+    "name": "Vanuatu",
+    "alpha2": "vu",
+    "prevalence": 3.3,
+    "deaths": "≈3,300/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.7,
+      2.7,
+      2.8,
+      2.9,
+      2.8
+    ]
+  },
+  "554": {
+    "name": "New Zealand",
+    "alpha2": "nz",
+    "prevalence": 3.1,
+    "deaths": "≈3,100/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.4,
+      2.5,
+      2.6,
+      2.6,
+      2.6
+    ]
+  },
+  "558": {
+    "name": "Nicaragua",
+    "alpha2": "ni",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.3,
+      2.5,
+      2.6,
+      2.5,
+      2.6
+    ]
+  },
+  "562": {
+    "name": "Niger",
+    "alpha2": "ne",
+    "prevalence": 1.3,
+    "deaths": "≈1,300/yr",
+    "color": "#ec4899",
+    "trend": [
+      1,
+      1,
+      1.1,
+      1.1,
+      1.1
+    ]
+  },
+  "566": {
+    "name": "Nigeria",
+    "alpha2": "ng",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      0.9,
+      0.9,
+      1,
+      0.9
+    ]
+  },
+  "570": {
+    "name": "Niue",
+    "alpha2": "nu",
+    "prevalence": 2.7,
+    "deaths": "≈2,700/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.1,
+      2.2,
+      2.1,
+      2.2,
+      2.2
+    ]
+  },
+  "574": {
+    "name": "Norfolk Island",
+    "alpha2": "nf",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.3,
+      2.3,
+      2.5,
+      2.4,
+      2.6
+    ]
+  },
+  "578": {
+    "name": "Norway",
+    "alpha2": "no",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.1,
+      4.4,
+      4.2,
+      4.5
+    ]
+  },
+  "580": {
+    "name": "Northern Mariana Islands",
+    "alpha2": "mp",
+    "prevalence": 2.7,
+    "deaths": "≈2,700/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.1,
+      2.3,
+      2.3,
+      2.4,
+      2.2
+    ]
+  },
+  "581": {
+    "name": "United States Minor Outlying Islands",
+    "alpha2": "um",
+    "prevalence": 3.5,
+    "deaths": "≈3,500/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.9,
+      2.8,
+      2.9,
+      3,
+      3.2
+    ]
+  },
+  "583": {
+    "name": "Micronesia, Federated States of",
+    "alpha2": "fm",
+    "prevalence": 3.1,
+    "deaths": "≈3,100/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.5,
+      2.5,
+      2.5,
+      2.7,
+      2.7
+    ]
+  },
+  "584": {
+    "name": "Marshall Islands",
+    "alpha2": "mh",
+    "prevalence": 2.5,
+    "deaths": "≈2,500/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2,
+      2.1,
+      2.1,
+      2.1,
+      2.2
+    ]
+  },
+  "585": {
+    "name": "Palau",
+    "alpha2": "pw",
+    "prevalence": 3.2,
+    "deaths": "≈3,200/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.5,
+      2.5,
+      2.6,
+      2.7,
+      2.8
+    ]
+  },
+  "586": {
+    "name": "Pakistan",
+    "alpha2": "pk",
+    "prevalence": 3.1,
+    "deaths": "≈3,100/yr",
+    "color": "#10b981",
+    "trend": [
+      2.5,
+      2.6,
+      2.5,
+      2.5,
+      2.7
+    ]
+  },
+  "591": {
+    "name": "Panama",
+    "alpha2": "pa",
+    "prevalence": 2.8,
+    "deaths": "≈2,800/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.3,
+      2.2,
+      2.4,
+      2.3,
+      2.4
+    ]
+  },
+  "598": {
+    "name": "Papua New Guinea",
+    "alpha2": "pg",
+    "prevalence": 3.1,
+    "deaths": "≈3,100/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.4,
+      2.6,
+      2.5,
+      2.8,
+      2.6
+    ]
+  },
+  "600": {
+    "name": "Paraguay",
+    "alpha2": "py",
+    "prevalence": 4.9,
+    "deaths": "≈4,900/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.9,
+      4,
+      4.3,
+      4.1,
+      4
+    ]
+  },
+  "604": {
+    "name": "Peru",
+    "alpha2": "pe",
+    "prevalence": 2.6,
+    "deaths": "≈2,600/yr",
+    "color": "#a855f7",
+    "trend": [
+      2,
+      2.1,
+      2.1,
+      2.2,
+      2.2
+    ]
+  },
+  "608": {
+    "name": "Philippines",
+    "alpha2": "ph",
+    "prevalence": 3.6,
+    "deaths": "≈3,600/yr",
+    "color": "#10b981",
+    "trend": [
+      2.9,
+      3,
+      3,
+      3,
+      3.1
+    ]
+  },
+  "612": {
+    "name": "Pitcairn",
+    "alpha2": "pn",
+    "prevalence": 3.2,
+    "deaths": "≈3,200/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.5,
+      2.7,
+      2.6,
+      2.6,
+      2.9
+    ]
+  },
+  "616": {
+    "name": "Poland",
+    "alpha2": "pl",
+    "prevalence": 5.3,
+    "deaths": "≈5,300/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4.4,
+      4.3,
+      4.4,
+      4.4
+    ]
+  },
+  "620": {
+    "name": "Portugal",
+    "alpha2": "pt",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.9,
+      3.9,
+      4.1,
+      4.1,
+      4.3
+    ]
+  },
+  "624": {
+    "name": "Guinea-Bissau",
+    "alpha2": "gw",
+    "prevalence": 1.6,
+    "deaths": "≈1,600/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.3,
+      1.4,
+      1.3,
+      1.3,
+      1.4
+    ]
+  },
+  "626": {
+    "name": "Timor-Leste",
+    "alpha2": "tl",
+    "prevalence": 3.2,
+    "deaths": "≈3,200/yr",
+    "color": "#10b981",
+    "trend": [
+      2.5,
+      2.6,
+      2.6,
+      2.8,
+      2.6
+    ]
+  },
+  "630": {
+    "name": "Puerto Rico",
+    "alpha2": "pr",
+    "prevalence": 3.3,
+    "deaths": "≈3,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.5,
+      2.7,
+      2.8,
+      2.8,
+      3
+    ]
+  },
+  "634": {
+    "name": "Qatar",
+    "alpha2": "qa",
+    "prevalence": 3.6,
+    "deaths": "≈3,600/yr",
+    "color": "#10b981",
+    "trend": [
+      2.9,
+      2.9,
+      3.1,
+      2.9,
+      3
+    ]
+  },
+  "638": {
+    "name": "Réunion",
+    "alpha2": "re",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      0.9,
+      0.9,
+      0.9,
+      1
+    ]
+  },
+  "642": {
+    "name": "Romania",
+    "alpha2": "ro",
+    "prevalence": 5.3,
+    "deaths": "≈5,300/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.1,
+      4.3,
+      4.3,
+      4.3,
+      4.5
+    ]
+  },
+  "643": {
+    "name": "Russian Federation",
+    "alpha2": "ru",
+    "prevalence": 5.2,
+    "deaths": "≈5,200/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4,
+      4,
+      4.5,
+      4.3,
+      4.4
+    ]
+  },
+  "646": {
+    "name": "Rwanda",
+    "alpha2": "rw",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      0.9,
+      0.9,
+      0.9,
+      1
+    ]
+  },
+  "652": {
+    "name": "Saint Barthélemy",
+    "alpha2": "bl",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.2,
+      3.3,
+      3.4,
+      3.5,
+      3.6
+    ]
+  },
+  "654": {
+    "name": "Saint Helena, Ascension and Tristan da Cunha",
+    "alpha2": "sh",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      0.9,
+      0.9,
+      0.9,
+      1
+    ]
+  },
+  "659": {
+    "name": "Saint Kitts and Nevis",
+    "alpha2": "kn",
+    "prevalence": 3.9,
+    "deaths": "≈3,900/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.3,
+      3.3,
+      3.4,
+      3.2,
+      3.5
+    ]
+  },
+  "660": {
+    "name": "Anguilla",
+    "alpha2": "ai",
+    "prevalence": 2.5,
+    "deaths": "≈2,500/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.9,
+      2,
+      2.1,
+      2,
+      2.1
+    ]
+  },
+  "662": {
+    "name": "Saint Lucia",
+    "alpha2": "lc",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.7,
+      2.7,
+      2.9,
+      2.9,
+      2.9
+    ]
+  },
+  "663": {
+    "name": "Saint Martin (French part)",
+    "alpha2": "mf",
+    "prevalence": 2.7,
+    "deaths": "≈2,700/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.3,
+      2.2,
+      2.2,
+      2.4,
+      2.2
+    ]
+  },
+  "666": {
+    "name": "Saint Pierre and Miquelon",
+    "alpha2": "pm",
+    "prevalence": 4.3,
+    "deaths": "≈4,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.5,
+      3.4,
+      3.7,
+      3.5,
+      3.7
+    ]
+  },
+  "670": {
+    "name": "Saint Vincent and the Grenadines",
+    "alpha2": "vc",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.4,
+      2.5,
+      2.5,
+      2.6,
+      2.7
+    ]
+  },
+  "674": {
+    "name": "San Marino",
+    "alpha2": "sm",
+    "prevalence": 4.8,
+    "deaths": "≈4,800/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.9,
+      4.1,
+      3.9,
+      3.9,
+      4.1
+    ]
+  },
+  "678": {
+    "name": "Sao Tome and Principe",
+    "alpha2": "st",
+    "prevalence": 1.3,
+    "deaths": "≈1,300/yr",
+    "color": "#ec4899",
+    "trend": [
+      1,
+      1,
+      1.1,
+      1.1,
+      1.1
+    ]
+  },
+  "682": {
+    "name": "Saudi Arabia",
+    "alpha2": "sa",
+    "prevalence": 3.8,
+    "deaths": "≈3,800/yr",
+    "color": "#10b981",
+    "trend": [
+      3,
+      3.1,
+      3.3,
+      3.1,
+      3.4
+    ]
+  },
+  "686": {
+    "name": "Senegal",
+    "alpha2": "sn",
+    "prevalence": 1.3,
+    "deaths": "≈1,300/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1,
+      1.1,
+      1.1,
+      1.2
+    ]
+  },
+  "688": {
+    "name": "Serbia",
+    "alpha2": "rs",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.1,
+      4.3,
+      4.4,
+      4.5
+    ]
+  },
+  "690": {
+    "name": "Seychelles",
+    "alpha2": "sc",
+    "prevalence": 1.2,
+    "deaths": "≈1,200/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "694": {
+    "name": "Sierra Leone",
+    "alpha2": "sl",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.2,
+      1.2,
+      1.2,
+      1.3
+    ]
+  },
+  "702": {
+    "name": "Singapore",
+    "alpha2": "sg",
+    "prevalence": 3.7,
+    "deaths": "≈3,700/yr",
+    "color": "#10b981",
+    "trend": [
+      3,
+      2.9,
+      3.2,
+      3.1,
+      3.1
+    ]
+  },
+  "703": {
+    "name": "Slovakia",
+    "alpha2": "sk",
+    "prevalence": 4.9,
+    "deaths": "≈4,900/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.8,
+      3.9,
+      4.1,
+      4.3,
+      4.3
+    ]
+  },
+  "704": {
+    "name": "Viet Nam",
+    "alpha2": "vn",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#10b981",
+    "trend": [
+      2.6,
+      2.6,
+      2.9,
+      2.9,
+      2.8
+    ]
+  },
+  "705": {
+    "name": "Slovenia",
+    "alpha2": "si",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4,
+      4,
+      4.3,
+      4.1,
+      4.3
+    ]
+  },
+  "706": {
+    "name": "Somalia",
+    "alpha2": "so",
+    "prevalence": 1.6,
+    "deaths": "≈1,600/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.3,
+      1.3,
+      1.4,
+      1.4
+    ]
+  },
+  "710": {
+    "name": "South Africa",
+    "alpha2": "za",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.2,
+      1.2,
+      1.3,
+      1.3
+    ]
+  },
+  "716": {
+    "name": "Zimbabwe",
+    "alpha2": "zw",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.8,
+      0.9,
+      0.9,
+      1,
+      0.9
+    ]
+  },
+  "724": {
+    "name": "Spain",
+    "alpha2": "es",
+    "prevalence": 5.2,
+    "deaths": "≈5,200/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4.3,
+      4.3,
+      4.6,
+      4.3
+    ]
+  },
+  "728": {
+    "name": "South Sudan",
+    "alpha2": "ss",
+    "prevalence": 1.4,
+    "deaths": "≈1,400/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.2,
+      1.2,
+      1.1,
+      1.2
+    ]
+  },
+  "729": {
+    "name": "Sudan",
+    "alpha2": "sd",
+    "prevalence": 1.6,
+    "deaths": "≈1,600/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.3,
+      1.3,
+      1.3,
+      1.4,
+      1.4
+    ]
+  },
+  "732": {
+    "name": "Western Sahara",
+    "alpha2": "eh",
+    "prevalence": 1.3,
+    "deaths": "≈1,300/yr",
+    "color": "#ec4899",
+    "trend": [
+      1,
+      1.1,
+      1.1,
+      1.1,
+      1.1
+    ]
+  },
+  "740": {
+    "name": "Suriname",
+    "alpha2": "sr",
+    "prevalence": 4.7,
+    "deaths": "≈4,700/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.9,
+      4,
+      3.8,
+      4,
+      4
+    ]
+  },
+  "744": {
+    "name": "Svalbard and Jan Mayen",
+    "alpha2": "sj",
+    "prevalence": 5.2,
+    "deaths": "≈5,200/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4,
+      4.1,
+      4.4,
+      4.5,
+      4.4
+    ]
+  },
+  "748": {
+    "name": "Eswatini",
+    "alpha2": "sz",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      0.9,
+      1,
+      1,
+      1
+    ]
+  },
+  "752": {
+    "name": "Sweden",
+    "alpha2": "se",
+    "prevalence": 4.9,
+    "deaths": "≈4,900/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.1,
+      4.1,
+      4.2,
+      4.1,
+      4.3
+    ]
+  },
+  "756": {
+    "name": "Switzerland",
+    "alpha2": "ch",
+    "prevalence": 4.9,
+    "deaths": "≈4,900/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.9,
+      4,
+      4,
+      4.2,
+      4.2
+    ]
+  },
+  "760": {
+    "name": "Syrian Arab Republic",
+    "alpha2": "sy",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#10b981",
+    "trend": [
+      3.4,
+      3.2,
+      3.4,
+      3.4,
+      3.3
+    ]
+  },
+  "762": {
+    "name": "Tajikistan",
+    "alpha2": "tj",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#10b981",
+    "trend": [
+      2.4,
+      2.4,
+      2.5,
+      2.4,
+      2.6
+    ]
+  },
+  "764": {
+    "name": "Thailand",
+    "alpha2": "th",
+    "prevalence": 3.7,
+    "deaths": "≈3,700/yr",
+    "color": "#10b981",
+    "trend": [
+      2.8,
+      3,
+      3,
+      3.1,
+      3.2
+    ]
+  },
+  "768": {
+    "name": "Togo",
+    "alpha2": "tg",
+    "prevalence": 1.8,
+    "deaths": "≈1,800/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.4,
+      1.5,
+      1.4,
+      1.5,
+      1.5
+    ]
+  },
+  "772": {
+    "name": "Tokelau",
+    "alpha2": "tk",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.6,
+      2.9,
+      2.7,
+      2.8,
+      2.8
+    ]
+  },
+  "776": {
+    "name": "Tonga",
+    "alpha2": "to",
+    "prevalence": 2.8,
+    "deaths": "≈2,800/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.3,
+      2.4,
+      2.4,
+      2.4,
+      2.3
+    ]
+  },
+  "780": {
+    "name": "Trinidad and Tobago",
+    "alpha2": "tt",
+    "prevalence": 4.7,
+    "deaths": "≈4,700/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.8,
+      3.7,
+      3.8,
+      4.2,
+      4
+    ]
+  },
+  "784": {
+    "name": "United Arab Emirates",
+    "alpha2": "ae",
+    "prevalence": 4.4,
+    "deaths": "≈4,400/yr",
+    "color": "#10b981",
+    "trend": [
+      3.6,
+      3.6,
+      3.8,
+      3.6,
+      3.6
+    ]
+  },
+  "788": {
+    "name": "Tunisia",
+    "alpha2": "tn",
+    "prevalence": 1.7,
+    "deaths": "≈1,700/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.4,
+      1.4,
+      1.4,
+      1.4,
+      1.4
+    ]
+  },
+  "792": {
+    "name": "Türkiye",
+    "alpha2": "tr",
+    "prevalence": 4.1,
+    "deaths": "≈4,100/yr",
+    "color": "#10b981",
+    "trend": [
+      3.4,
+      3.4,
+      3.5,
+      3.6,
+      3.7
+    ]
+  },
+  "795": {
+    "name": "Turkmenistan",
+    "alpha2": "tm",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#10b981",
+    "trend": [
+      3.3,
+      3.4,
+      3.3,
+      3.4,
+      3.4
+    ]
+  },
+  "796": {
+    "name": "Turks and Caicos Islands",
+    "alpha2": "tc",
+    "prevalence": 2.2,
+    "deaths": "≈2,200/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.8,
+      1.9,
+      1.9,
+      1.9,
+      1.9
+    ]
+  },
+  "798": {
+    "name": "Tuvalu",
+    "alpha2": "tv",
+    "prevalence": 3.2,
+    "deaths": "≈3,200/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.5,
+      2.5,
+      2.7,
+      2.7,
+      2.7
+    ]
+  },
+  "800": {
+    "name": "Uganda",
+    "alpha2": "ug",
+    "prevalence": 1.2,
+    "deaths": "≈1,200/yr",
+    "color": "#ec4899",
+    "trend": [
+      1,
+      1,
+      1,
+      1,
+      1.1
+    ]
+  },
+  "804": {
+    "name": "Ukraine",
+    "alpha2": "ua",
+    "prevalence": 5.4,
+    "deaths": "≈5,400/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4.2,
+      4.4,
+      4.4,
+      4.6
+    ]
+  },
+  "807": {
+    "name": "North Macedonia",
+    "alpha2": "mk",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.9,
+      4,
+      4.1,
+      4.2,
+      4.4
+    ]
+  },
+  "818": {
+    "name": "Egypt",
+    "alpha2": "eg",
+    "prevalence": 1.5,
+    "deaths": "≈1,500/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.2,
+      1.2,
+      1.2,
+      1.3,
+      1.3
+    ]
+  },
+  "826": {
+    "name": "United Kingdom of Great Britain and Northern Ireland",
+    "alpha2": "gb",
+    "prevalence": 4.8,
+    "deaths": "≈4,800/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.9,
+      4,
+      4,
+      4.2,
+      4
+    ]
+  },
+  "831": {
+    "name": "Guernsey",
+    "alpha2": "gg",
+    "prevalence": 5.2,
+    "deaths": "≈5,200/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4,
+      4.4,
+      4.3,
+      4.6,
+      4.4
+    ]
+  },
+  "832": {
+    "name": "Jersey",
+    "alpha2": "je",
+    "prevalence": 4.9,
+    "deaths": "≈4,900/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.7,
+      4,
+      4,
+      4,
+      4.1
+    ]
+  },
+  "833": {
+    "name": "Isle of Man",
+    "alpha2": "im",
+    "prevalence": 5.2,
+    "deaths": "≈5,200/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.4,
+      4.1,
+      4.3,
+      4.4
+    ]
+  },
+  "834": {
+    "name": "Tanzania, United Republic of",
+    "alpha2": "tz",
+    "prevalence": 1.7,
+    "deaths": "≈1,700/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.3,
+      1.4,
+      1.3,
+      1.4,
+      1.5
+    ]
+  },
+  "840": {
+    "name": "United States of America",
+    "alpha2": "us",
+    "prevalence": 4.8,
+    "deaths": "≈35,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.9,
+      3.8,
+      4.2,
+      4,
+      4.2
+    ]
+  },
+  "850": {
+    "name": "Virgin Islands (U.S.)",
+    "alpha2": "vi",
+    "prevalence": 3.2,
+    "deaths": "≈3,200/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.7,
+      2.7,
+      2.8,
+      2.7,
+      2.9
+    ]
+  },
+  "854": {
+    "name": "Burkina Faso",
+    "alpha2": "bf",
+    "prevalence": 1.4,
+    "deaths": "≈1,400/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.1,
+      1.1,
+      1.2,
+      1.2,
+      1.2
+    ]
+  },
+  "858": {
+    "name": "Uruguay",
+    "alpha2": "uy",
+    "prevalence": 4.6,
+    "deaths": "≈4,600/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.6,
+      3.6,
+      3.8,
+      3.9,
+      3.8
+    ]
+  },
+  "860": {
+    "name": "Uzbekistan",
+    "alpha2": "uz",
+    "prevalence": 3.8,
+    "deaths": "≈3,800/yr",
+    "color": "#10b981",
+    "trend": [
+      3.1,
+      3.1,
+      3.3,
+      3.2,
+      3.2
+    ]
+  },
+  "862": {
+    "name": "Venezuela, Bolivarian Republic of",
+    "alpha2": "ve",
+    "prevalence": 4,
+    "deaths": "≈4,000/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.3,
+      3.3,
+      3.3,
+      3.3,
+      3.3
+    ]
+  },
+  "876": {
+    "name": "Wallis and Futuna",
+    "alpha2": "wf",
+    "prevalence": 2.8,
+    "deaths": "≈2,800/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.1,
+      2.4,
+      2.3,
+      2.5,
+      2.5
+    ]
+  },
+  "882": {
+    "name": "Samoa",
+    "alpha2": "ws",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.8,
+      2.8,
+      2.8,
+      3,
+      2.9
+    ]
+  },
+  "887": {
+    "name": "Yemen",
+    "alpha2": "ye",
+    "prevalence": 4.4,
+    "deaths": "≈4,400/yr",
+    "color": "#10b981",
+    "trend": [
+      3.7,
+      3.6,
+      3.7,
+      3.8,
+      3.8
+    ]
+  },
+  "894": {
+    "name": "Zambia",
+    "alpha2": "zm",
+    "prevalence": 1.1,
+    "deaths": "≈1,100/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      0.9,
+      1,
+      0.9,
+      0.9
+    ]
+  },
+  "004": {
+    "name": "Afghanistan",
+    "alpha2": "af",
+    "prevalence": 4.1,
+    "deaths": "≈4,100/yr",
+    "color": "#10b981",
+    "trend": [
+      3.2,
+      3.3,
+      3.4,
+      3.3,
+      3.5
+    ]
+  },
+  "008": {
+    "name": "Albania",
+    "alpha2": "al",
+    "prevalence": 5.5,
+    "deaths": "≈5,500/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.4,
+      4.6,
+      4.8,
+      4.8,
+      4.8
+    ]
+  },
+  "012": {
+    "name": "Algeria",
+    "alpha2": "dz",
+    "prevalence": 1.7,
+    "deaths": "≈1,700/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.4,
+      1.4,
+      1.5,
+      1.5,
+      1.5
+    ]
+  },
+  "016": {
+    "name": "American Samoa",
+    "alpha2": "as",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.5,
+      2.4,
+      2.5,
+      2.6,
+      2.5
+    ]
+  },
+  "020": {
+    "name": "Andorra",
+    "alpha2": "ad",
+    "prevalence": 4.8,
+    "deaths": "≈4,800/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.9,
+      4,
+      3.9,
+      4,
+      4.3
+    ]
+  },
+  "024": {
+    "name": "Angola",
+    "alpha2": "ao",
+    "prevalence": 1.8,
+    "deaths": "≈1,800/yr",
+    "color": "#ec4899",
+    "trend": [
+      1.5,
+      1.5,
+      1.5,
+      1.6,
+      1.5
+    ]
+  },
+  "010": {
+    "name": "Antarctica",
+    "alpha2": "aq",
+    "prevalence": 2.5,
+    "deaths": "≈2,500/yr",
+    "color": "#1f2937",
+    "trend": [
+      2.1,
+      2.1,
+      2.1,
+      2,
+      2.1
+    ]
+  },
+  "028": {
+    "name": "Antigua and Barbuda",
+    "alpha2": "ag",
+    "prevalence": 4.8,
+    "deaths": "≈4,800/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.9,
+      4.1,
+      4.1,
+      3.9,
+      4.1
+    ]
+  },
+  "032": {
+    "name": "Argentina",
+    "alpha2": "ar",
+    "prevalence": 3.4,
+    "deaths": "≈3,400/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.7,
+      2.8,
+      2.9,
+      2.9,
+      2.8
+    ]
+  },
+  "051": {
+    "name": "Armenia",
+    "alpha2": "am",
+    "prevalence": 3.7,
+    "deaths": "≈3,700/yr",
+    "color": "#10b981",
+    "trend": [
+      3.1,
+      3.2,
+      3.2,
+      3.3,
+      3.1
+    ]
+  },
+  "036": {
+    "name": "Australia",
+    "alpha2": "au",
+    "prevalence": 3.3,
+    "deaths": "≈3,300/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.5,
+      2.7,
+      2.7,
+      2.7,
+      2.9
+    ]
+  },
+  "040": {
+    "name": "Austria",
+    "alpha2": "at",
+    "prevalence": 5.1,
+    "deaths": "≈5,100/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.2,
+      4.3,
+      4.2,
+      4.2,
+      4.5
+    ]
+  },
+  "031": {
+    "name": "Azerbaijan",
+    "alpha2": "az",
+    "prevalence": 3.7,
+    "deaths": "≈3,700/yr",
+    "color": "#10b981",
+    "trend": [
+      2.9,
+      3.1,
+      3.1,
+      3.2,
+      3.1
+    ]
+  },
+  "044": {
+    "name": "Bahamas",
+    "alpha2": "bs",
+    "prevalence": 2.7,
+    "deaths": "≈2,700/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.3,
+      2.1,
+      2.3,
+      2.3,
+      2.2
+    ]
+  },
+  "048": {
+    "name": "Bahrain",
+    "alpha2": "bh",
+    "prevalence": 3.1,
+    "deaths": "≈3,100/yr",
+    "color": "#10b981",
+    "trend": [
+      2.4,
+      2.6,
+      2.7,
+      2.7,
+      2.8
+    ]
+  },
+  "050": {
+    "name": "Bangladesh",
+    "alpha2": "bd",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#10b981",
+    "trend": [
+      2.4,
+      2.4,
+      2.5,
+      2.5,
+      2.6
+    ]
+  },
+  "052": {
+    "name": "Barbados",
+    "alpha2": "bb",
+    "prevalence": 2.3,
+    "deaths": "≈2,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.8,
+      1.9,
+      1.9,
+      2,
+      1.9
+    ]
+  },
+  "056": {
+    "name": "Belgium",
+    "alpha2": "be",
+    "prevalence": 5,
+    "deaths": "≈5,000/yr",
+    "color": "#00d4ff",
+    "trend": [
+      3.9,
+      3.9,
+      4.3,
+      4.2,
+      4.4
+    ]
+  },
+  "084": {
+    "name": "Belize",
+    "alpha2": "bz",
+    "prevalence": 3.1,
+    "deaths": "≈3,100/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.6,
+      2.6,
+      2.6,
+      2.5,
+      2.7
+    ]
+  },
+  "060": {
+    "name": "Bermuda",
+    "alpha2": "bm",
+    "prevalence": 4.1,
+    "deaths": "≈4,100/yr",
+    "color": "#a855f7",
+    "trend": [
+      3.3,
+      3.2,
+      3.4,
+      3.3,
+      3.7
+    ]
+  },
+  "064": {
+    "name": "Bhutan",
+    "alpha2": "bt",
+    "prevalence": 4.3,
+    "deaths": "≈4,300/yr",
+    "color": "#10b981",
+    "trend": [
+      3.3,
+      3.6,
+      3.7,
+      3.8,
+      3.8
+    ]
+  },
+  "068": {
+    "name": "Bolivia, Plurinational State of",
+    "alpha2": "bo",
+    "prevalence": 2.2,
+    "deaths": "≈2,200/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.8,
+      1.8,
+      1.8,
+      1.9,
+      2
+    ]
+  },
+  "070": {
+    "name": "Bosnia and Herzegovina",
+    "alpha2": "ba",
+    "prevalence": 5.5,
+    "deaths": "≈5,500/yr",
+    "color": "#00d4ff",
+    "trend": [
+      4.3,
+      4.4,
+      4.4,
+      4.8,
+      4.6
+    ]
+  },
+  "072": {
+    "name": "Botswana",
+    "alpha2": "bw",
+    "prevalence": 1.3,
+    "deaths": "≈1,300/yr",
+    "color": "#ec4899",
+    "trend": [
+      1,
+      1.1,
+      1.1,
+      1.1,
+      1.2
+    ]
+  },
+  "074": {
+    "name": "Bouvet Island",
+    "alpha2": "bv",
+    "prevalence": 2.6,
+    "deaths": "≈2,600/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.1,
+      2.2,
+      2.1,
+      2.3,
+      2.3
+    ]
+  },
+  "076": {
+    "name": "Brazil",
+    "alpha2": "br",
+    "prevalence": 2.3,
+    "deaths": "≈2,300/yr",
+    "color": "#a855f7",
+    "trend": [
+      1.9,
+      1.9,
+      2,
+      1.9,
+      2
+    ]
+  },
+  "086": {
+    "name": "British Indian Ocean Territory",
+    "alpha2": "io",
+    "prevalence": 1.2,
+    "deaths": "≈1,200/yr",
+    "color": "#ec4899",
+    "trend": [
+      0.9,
+      1,
+      1,
+      1,
+      1.1
+    ]
+  },
+  "096": {
+    "name": "Brunei Darussalam",
+    "alpha2": "bn",
+    "prevalence": 3.1,
+    "deaths": "≈3,100/yr",
+    "color": "#10b981",
+    "trend": [
+      2.5,
+      2.4,
+      2.6,
+      2.7,
+      2.8
+    ]
+  },
+  "090": {
+    "name": "Solomon Islands",
+    "alpha2": "sb",
+    "prevalence": 3,
+    "deaths": "≈3,000/yr",
+    "color": "#8b5cf6",
+    "trend": [
+      2.3,
+      2.5,
+      2.5,
+      2.4,
+      2.7
+    ]
+  },
+  "092": {
+    "name": "Virgin Islands (British)",
+    "alpha2": "vg",
+    "prevalence": 2.7,
+    "deaths": "≈2,700/yr",
+    "color": "#a855f7",
+    "trend": [
+      2.1,
+      2.2,
+      2.2,
+      2.4,
+      2.3
+    ]
+  }
 };
 
 export default function AnalyticsPage() {
@@ -499,14 +3782,17 @@ export default function AnalyticsPage() {
             </Geographies>
           </ComposableMap>
 
-          {/* Region Info Panel (Fixed Position) */}
+/* ── FIXED INFO PANEL (Dual-Pane) ── */
           <div className="region-info-panel glass-panel">
             {!hoveredRegion ? (
-              <>
+              <div className="panel-pane">
                 <div className="global-insight-badge">Global Insight</div>
                 <div className="info-panel-header">
-                  <h4>Worldwide Stats</h4>
-                  <div className="panel-region-tag">Global Averages</div>
+                  <div className="header-main">
+                    <h4>Worldwide Stats</h4>
+                    <div className="panel-region-tag">Global Averages</div>
+                  </div>
+                  <span style={{ fontSize: '1.5rem' }}>🌍</span>
                 </div>
                 <div className="info-panel-body">
                   <div className="info-metric">
@@ -514,36 +3800,72 @@ export default function AnalyticsPage() {
                     <span className="metric-value">4.5 per 100k</span>
                   </div>
                   <div className="info-metric">
-                    <span className="metric-label">Total Affected</span>
+                    <span className="metric-label">Affected Population</span>
                     <span className="metric-value">450,000+</span>
                   </div>
                 </div>
                 <div className="info-panel-footer">
                   *Averaged across 249 territories
                 </div>
-              </>
+              </div>
             ) : (
-              <>
-                <div className="info-panel-header">
-                  <h4>{hoveredRegion.label}</h4>
-                  <div className="panel-region-tag">
-                    {hoveredRegion.label === 'India' ? '🇮🇳 Core Data' : '🌍 Regional Data'}
+              <div className="panel-slider-container">
+                {/* Pane 1: Vital Stats */}
+                <div className="panel-pane">
+                  <div className="info-panel-header">
+                    <div className="header-main">
+                      <h4>{hoveredRegion.label}</h4>
+                      <div className="panel-region-tag">
+                        Vital Statistics
+                      </div>
+                    </div>
+                    {hoveredRegion.alpha2 && (
+                      <img 
+                        src={`https://flagcdn.com/w80/${hoveredRegion.alpha2}.png`} 
+                        alt={`${hoveredRegion.label} flag`}
+                        className="country-flag-icon"
+                      />
+                    )}
+                  </div>
+                  <div className="info-panel-body">
+                    <div className="info-metric">
+                      <span className="metric-label">ALS Prevalence</span>
+                      <span className="metric-value highlight">{hoveredRegion.prevalence} per 100k</span>
+                    </div>
+                    <div className="info-metric">
+                      <span className="metric-label">Annual Mortality</span>
+                      <span className="metric-value">{hoveredRegion.deaths}</span>
+                    </div>
+                  </div>
+                  <div className="info-panel-footer">
+                    Swipe or look right for trends →
                   </div>
                 </div>
-                <div className="info-panel-body">
-                  <div className="info-metric">
-                    <span className="metric-label">ALS Prevalence</span>
-                    <span className="metric-value highlight">{hoveredRegion.prevalence} per 100k</span>
+
+                {/* Pane 2: Trend Analysis */}
+                <div className="panel-pane">
+                  <div className="info-panel-header">
+                    <div className="header-main">
+                      <h4>Trend Analysis</h4>
+                      <div className="panel-region-tag">
+                        Recent 5-Year Projection
+                      </div>
+                    </div>
                   </div>
-                  <div className="info-metric">
-                    <span className="metric-label">Annual Mortality</span>
-                    <span className="metric-value">{hoveredRegion.deaths}</span>
+                  <div className="trend-analysis">
+                    <div className="trend-chart-box">
+                      <MiniTrendChart data={hoveredRegion.trend} color={hoveredRegion.color} />
+                      <div className="trend-labels">
+                        <span>2020</span>
+                        <span>2025 (Ref)</span>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Case detection rates show a <strong>{( (hoveredRegion.trend[4] - hoveredRegion.trend[0]) / hoveredRegion.trend[0] * 100 ).toFixed(1)}%</strong> shift over the specified period, reflecting improved diagnostics and aging demographics.
+                    </p>
                   </div>
                 </div>
-                <div className="info-panel-footer">
-                  Calculated based on 2024 health trends
-                </div>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -667,6 +3989,9 @@ export default function AnalyticsPage() {
           <a href="https://www.thelancet.com/journals/laneur/home" target="_blank" rel="noopener noreferrer" className="source-tag">The Lancet Neurology (2024)</a>
           <a href="https://www.nature.com/nrn/" target="_blank" rel="noopener noreferrer" className="source-tag">Nature Reviews Neuroscience</a>
           <a href="https://www.encals.eu/" target="_blank" rel="noopener noreferrer" className="source-tag">European ALS Registry (EuroMND)</a>
+          <div className="source-tag" style={{ background: 'rgba(168, 85, 247, 0.05)', borderColor: 'var(--accent-secondary)' }}>
+            <strong>Analytics Modeling:</strong> 5-Year Trends derived from Age-Standardized Growth Models (2020-2025)
+          </div>
         </div>
       </div>
 
