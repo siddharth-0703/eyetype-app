@@ -774,19 +774,34 @@ function App() {
     const lNormY = (lIrisY - lEyeMidY) / (lEyeH * 0.5);
     const rawNormY = (rNormY + lNormY) / 2; // approx -1..1
 
-    // === STEP 3: SUBTRACT CALIBRATION BASELINE → MAP TO KEYBOARD ===
-    // calibBaselineX is the user's "looking at camera" normX (~0.5 ideally)
-    // calibBaselineY is the user's "looking at camera" normY (~0.0 ideally)
-    // We center the gaze around the baseline, then stretch to keyboard range
-    const centeredX = rawNormX - calibBaselineX + 0.5; // recentered around 0.5
-    const centeredY = rawNormY - calibBaselineY;        // recentered around 0
+    // === STEP 3: SUBTRACT CALIBRATION BASELINE → HIGH-GAIN MAPPING ===
+    // Center the gaze around the baseline (baseline is user's neutral look)
+    const centeredX = rawNormX - calibBaselineX; 
+    const centeredY = rawNormY - calibBaselineY;
 
+    // PROFESSIONAL CV GAIN: 
+    // Iris movement relative to eye width is tiny (<5% for full screen).
+    // Gain factors amplify this microscopic change to cover the keyboard area.
     const desktop = stateRef.current.isDesktop;
-    const GAZE_X_MIN = desktop ? 0.22 : 0.28;
-    const GAZE_X_MAX = desktop ? 0.78 : 0.72;
-    const GAZE_Y_RANGE = 0.40;
-    const mappedX = Math.max(0, Math.min(1, (centeredX - GAZE_X_MIN) / (GAZE_X_MAX - GAZE_X_MIN)));
-    const mappedY = Math.max(0, Math.min(1, (centeredY + GAZE_Y_RANGE) / (2 * GAZE_Y_RANGE)));
+    const gainX = desktop ? 16.0 : 20.0; // Aggressive X gain for wide keys
+    const gainY = desktop ? 12.0 : 15.0; // Aggressive Y gain for vertical reach
+
+    // Bi-directional sensitivity curve: 
+    // We use a small exponent (0.85) to make the center more stable 
+    // while accelerating towards the edges (Power-law tracking).
+    const applyCurve = (v: number, gain: number) => {
+        const sign = v >= 0 ? 1 : -1;
+        const absV = Math.abs(v);
+        // Map 0 -> 0.5, and gain-amplified range to [0, 1]
+        return 0.5 + (sign * Math.pow(absV, 0.85) * gain);
+    };
+
+    let mappedX = applyCurve(centeredX, gainX);
+    let mappedY = applyCurve(centeredY, gainY);
+
+    // Final Clamping to Keyboard viewport
+    mappedX = Math.max(0, Math.min(1, mappedX));
+    mappedY = Math.max(0, Math.min(1, mappedY));
 
     // === STEP 4: ADAPTIVE SMOOTHING ===
     // More responsive for larger jumps (intentional key changes),
@@ -797,7 +812,7 @@ function App() {
     const dkx = targetKX - stateRef.current.keySmX;
     const dky = targetKY - stateRef.current.keySmY;
     const kdist = Math.sqrt(dkx * dkx + dky * dky);
-    const alpha = Math.min(0.22, Math.max(0.06, kdist / 280));
+    const alpha = Math.min(0.35, Math.max(0.12, kdist / 300));
     stateRef.current.keySmX += alpha * dkx;
     stateRef.current.keySmY += alpha * dky;
 
