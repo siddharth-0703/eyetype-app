@@ -75,17 +75,36 @@ const TIMELINE = [
   { year: '2025', text: 'AI-powered clinical tools make communication accessible to all.' },
 ];
 
-/* ── World Map Paths (Realistic Geography) ── */
-const MAP_REGIONS = [
-  { id: 'nam', label: 'North America', d: 'M60.6,29.9c-2.3-0.7-5,1-8.1,5.2c-3.1,4.2-4.1,10.6-3.1,19.1c1.1,8.5,4.1,14.8,9,19.1c4.9,4.2,12.2,6.3,21.8,6.3c9.6,0,16.8-2.1,21.7-6.3c4.9-4.2,7.3-10.6,7.3-19.1c0-8.5-2.4-14.8-7.3-19.1c-4.9-4.2-12.2-6.3-21.7-6.3C70.6,28.8,63,29.2,60.6,29.9z', prevalence: 5.2, deaths: '≈35,000/yr' },
-  { id: 'rus', label: 'Russia & Eurasia', d: 'M155,20 L280,15 L260,60 L170,65 L155,40 Z', prevalence: 3.5, deaths: '≈18,000/yr' },
-  { id: 'asi', label: 'East Asia', d: 'M210,65 L280,60 L290,110 L230,120 L210,100 Z', prevalence: 3.2, deaths: '≈25,000/yr' },
-  { id: 'sas', label: 'South Asia & India', d: 'M180,100 L215,90 L230,125 L200,140 L180,125 Z', prevalence: 4.1, deaths: '≈100,000/yr' },
-  { id: 'eur', label: 'Europe', d: 'M115,25 L160,20 L170,50 L140,65 L120,55 Z', prevalence: 4.8, deaths: '≈42,000/yr' },
-  { id: 'afr', label: 'Africa', d: 'M120,70 L155,65 L180,95 L170,140 L135,150 L115,120 Z', prevalence: 1.2, deaths: '≈5,000/yr' },
-  { id: 'sam', label: 'South America', d: 'M85,85 L115,90 L110,140 L90,165 L75,130 Z', prevalence: 2.1, deaths: '≈12,000/yr' },
-  { id: 'oce', label: 'Oceania', d: 'M270,140 L320,135 L340,175 L290,185 Z', prevalence: 2.8, deaths: '≈3,000/yr' },
-];
+import { ComposableMap, Geographies, Geography, Sphere, Graticule } from "react-simple-maps";
+
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+
+/* ── World Map Data (Realistic ISO Mapping) ── */
+const MAP_DATA: Record<string, { prevalence: number, deaths: string, color: string }> = {
+  // India (South Asia Focus)
+  "IND": { prevalence: 4.1, deaths: "≈100,000/yr", color: "#10b981" },
+  // North America
+  "USA": { prevalence: 5.2, deaths: "≈35,000/yr", color: "#a855f7" },
+  "CAN": { prevalence: 5.2, deaths: "≈3,000/yr", color: "#a855f7" },
+  // Europe
+  "GBR": { prevalence: 4.8, deaths: "≈5,000/yr", color: "#00d4ff" },
+  "FRA": { prevalence: 4.8, deaths: "≈4,500/yr", color: "#00d4ff" },
+  "DEU": { prevalence: 4.8, deaths: "≈6,000/yr", color: "#00d4ff" },
+  // East Asia
+  "CHN": { prevalence: 3.2, deaths: "≈18,000/yr", color: "#f43f5e" },
+  "JPN": { prevalence: 3.2, deaths: "≈4,000/yr", color: "#f43f5e" },
+  // Russia
+  "RUS": { prevalence: 3.5, deaths: "≈18,000/yr", color: "#f59e0b" },
+  // Africa
+  "ZAF": { prevalence: 1.2, deaths: "≈1,000/yr", color: "#ec4899" },
+  "EGY": { prevalence: 1.2, deaths: "≈800/yr", color: "#ec4899" },
+  "NGA": { prevalence: 1.2, deaths: "≈1,200/yr", color: "#ec4899" },
+  // South America
+  "BRA": { prevalence: 2.1, deaths: "≈8,000/yr", color: "#06b6d4" },
+  "ARG": { prevalence: 2.1, deaths: "≈2,000/yr", color: "#06b6d4" },
+  // Australia
+  "AUS": { prevalence: 2.8, deaths: "≈3,000/yr", color: "#8b5cf6" },
+};
 
 export default function AnalyticsPage() {
   const [visible, setVisible] = useState(false);
@@ -104,11 +123,17 @@ export default function AnalyticsPage() {
       setTooltipPos({ x, y });
       
       const elements = document.elementsFromPoint(x, y);
-      const regionEl = elements.find(el => el.classList.contains('map-region'));
+      const regionEl = elements.find(el => el.classList.contains('map-region')) as HTMLElement | undefined;
+      
       if (regionEl) {
         const id = regionEl.getAttribute('data-id');
-        const reg = MAP_REGIONS.find(r => r.id === id);
-        if (reg) setHoveredRegion(reg);
+        if (id) {
+          // Find the data from MAP_DATA or just the name if available
+          const data = MAP_DATA[id];
+          if (data) {
+            setHoveredRegion({ ...data, geoId: id, label: "Selected Region" }); // Simplified label for gaze
+          }
+        }
       } else {
         setHoveredRegion(null);
       }
@@ -201,24 +226,57 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="map-container" onMouseMove={handleMouseMove}>
-          <svg viewBox="0 -20 350 200" className="world-map-svg">
-            <defs>
-              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-            {MAP_REGIONS.map(reg => (
-              <path
-                key={reg.id}
-                d={reg.d}
-                data-id={reg.id}
-                className={`map-region ${hoveredRegion?.id === reg.id ? 'active' : ''} ${reg.id === 'sas' ? 'india-focus' : ''}`}
-                onMouseEnter={() => mode !== 'gaze' && setHoveredRegion(reg)}
-                onMouseLeave={() => mode !== 'gaze' && setHoveredRegion(null)}
-              />
-            ))}
-          </svg>
+          <ComposableMap
+            projectionConfig={{ scale: 145 }}
+            width={800}
+            height={400}
+            style={{ width: "100%", height: "auto" }}
+          >
+            <Sphere stroke="#E4E5E6" strokeWidth={0.5} id={""} fill={""} />
+            <Graticule stroke="#E4E5E6" strokeWidth={0.5} />
+            <Geographies geography={geoUrl}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const isIndia = geo.id === "356" || geo.properties.name === "India";
+                  const data = MAP_DATA[geo.id] || MAP_DATA[geo.properties.ISO_A3] || (isIndia ? MAP_DATA["IND"] : null);
+                  
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      data-id={geo.id}
+                      className={`map-region ${hoveredRegion?.geoId === geo.id ? 'active' : ''} ${isIndia ? 'india-focus' : ''}`}
+                      onMouseEnter={() => {
+                        if (mode !== 'gaze' && data) {
+                          setHoveredRegion({ ...data, label: geo.properties.name, geoId: geo.id });
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (mode !== 'gaze') setHoveredRegion(null);
+                      }}
+                      style={{
+                        default: {
+                          fill: data ? data.color : "#1f2937",
+                          outline: "none",
+                          transition: "all 250ms",
+                        },
+                        hover: {
+                          fill: data ? data.color : "#374151",
+                          outline: "none",
+                          cursor: data ? "pointer" : "default",
+                          filter: "brightness(1.2) drop-shadow(0 0 5px rgba(255,255,255,0.2))",
+                        },
+                        pressed: {
+                          fill: "#E42",
+                          outline: "none",
+                        },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+          </ComposableMap>
 
           {hoveredRegion && (
             <div 
@@ -226,7 +284,7 @@ export default function AnalyticsPage() {
               style={{ left: tooltipPos.x + 15, top: tooltipPos.y + 15 }}
             >
               <div className="tooltip-header">
-                <span className="tooltip-flag">{hoveredRegion.id === 'sas' ? '🇮🇳' : '🌍'}</span>
+                <span className="tooltip-flag">{hoveredRegion.label === 'India' ? '🇮🇳' : '🌍'}</span>
                 <strong>{hoveredRegion.label}</strong>
               </div>
               <div className="tooltip-body">

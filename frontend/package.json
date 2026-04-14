@@ -15,9 +15,11 @@
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "@supabase/supabase-js": "^2.103.0",
     "axios": "^1.15.0",
+    "d3-geo": "^3.1.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.14.0"
+    "react-router-dom": "^7.14.0",
+    "react-simple-maps": "^3.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

@@ -41,7 +41,7 @@ const THEMES = {
 };
 
 function App() {
-  const { mode, landmarks, blinkStatus: globalBlink } = useMode();
+  const { mode, setMode, landmarks, blinkStatus: globalBlink } = useMode();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -263,6 +263,7 @@ function App() {
 
   const startEngine = async () => {
     setHasStarted(true);
+    setMode('gaze'); // Automatically enable gaze mode on start
 
     // FORCE CAMERA PERMISSION PROMPT (The Kickstarter)
     try {
