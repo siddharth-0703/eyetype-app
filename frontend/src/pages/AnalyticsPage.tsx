@@ -1,3 +1,5 @@
+import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useMode } from '../context/ModeContext';
 import './AnalyticsPage.css';
@@ -144,7 +146,6 @@ export default function AnalyticsPage() {
   const c1 = useCountUp(450000, 2500, visible);
   const c2 = useCountUp(125000, 2000, visible);
   const c3 = useCountUp(3, 1800, visible);
-  const c4 = useCountUp(15, 1500, visible);
 
   const maxPrevalence = Math.max(...PREVALENCE_DATA.map(d => d.value));
 

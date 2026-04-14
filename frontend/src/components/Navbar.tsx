@@ -1,7 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMode } from '../context/ModeContext';
 import './Navbar.css';
 
+export default function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const { mode, toggleMode } = useMode();
 

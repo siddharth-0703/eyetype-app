@@ -14,7 +14,6 @@ export const GlobalGazeSystem: React.FC = () => {
     lastBlinkEnd: 0,
   });
 
-  const [blinkStatus, setBlinkStatus] = useState<'idle' | 'dot' | 'dash' | 'reset'>('idle');
 
   useEffect(() => {
     if (mode === 'gaze' && !isActive) {

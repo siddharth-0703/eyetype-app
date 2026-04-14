@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import { useMode } from './context/ModeContext';
 
 // No top-level globals here to avoid race conditions with CDN scripts
@@ -39,7 +41,7 @@ const THEMES = {
 };
 
 function App() {
-  const { mode, gazePos, landmarks, blinkStatus: globalBlink } = useMode();
+  const { mode, landmarks, blinkStatus: globalBlink } = useMode();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -67,6 +69,13 @@ function App() {
   const [inputMode, setInputMode] = useState<'standard' | 'morse'>('standard');
   const [morseSequence, setMorseSequence] = useState<string>('');
   const [blinkStatus, setBlinkStatus] = useState<'idle' | 'dot' | 'dash' | 'mega' | 'clear' | 'reset'>('idle');
+
+  // Sync global blink for Morse/Selection
+  useEffect(() => {
+    if (mode === 'gaze' && inputMode === 'morse' && globalBlink === 'dot') {
+      triggerMorseSymbol('.');
+    }
+  }, [globalBlink, inputMode, mode]);
 
   const stateRef = useRef({
     typedText: '',
@@ -285,7 +294,8 @@ function App() {
     setCalibProgress(0);
     setCalibWarning('');
 
-    initCamera();
+    // No local initCamera needed, GlobalGazeSystem handles it
+    fetchPredictions('');
   };
 
   const handleMotion = (event: DeviceMotionEvent) => {
