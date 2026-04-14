@@ -110,7 +110,133 @@
   line-height: 1.4;
 }
 
-/* ── DASHBOARD GRID ── */
+.stat-card.highlight-india {
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.05) 0%, rgba(21, 29, 51, 0.8) 100%);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+}
+
+.stat-card.highlight-india:hover {
+  border-color: #10b981;
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.2);
+}
+
+/* ── MAP SECTION ── */
+.map-section {
+  max-width: 1200px;
+  margin: 4rem auto 0;
+  padding: 0 2rem;
+  text-align: center;
+}
+
+.map-section .section-head {
+  margin-bottom: 2.5rem;
+}
+
+.map-section h2 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.map-section p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.map-container {
+  position: relative;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  cursor: crosshair;
+  overflow: hidden;
+}
+
+.world-map-svg {
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  filter: drop-shadow(0 0 20px rgba(0, 0, 0, 0.5));
+}
+
+.map-region {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 0.8;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.map-region:hover, .map-region.active {
+  fill: var(--accent-color);
+  stroke: #fff;
+  stroke-width: 1.5;
+  filter: url(#glow);
+}
+
+.map-region.india-focus {
+  fill: rgba(16, 185, 129, 0.2);
+  stroke: rgba(16, 185, 129, 0.5);
+  stroke-width: 1.2;
+}
+
+.map-region.india-focus:hover, .map-region.india-focus.active {
+  fill: #10b981;
+  stroke: #fff;
+}
+
+/* ── TOOLTIP ── */
+.map-tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  min-width: 180px;
+  padding: 1rem;
+  background: rgba(10, 14, 26, 0.9) !important;
+  border-color: var(--accent-color) !important;
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.8rem;
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 0.5rem;
+}
+
+.tooltip-flag {
+  font-size: 1.2rem;
+}
+
+.tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.75rem;
+}
+
+.tooltip-row span:first-child {
+  color: var(--text-secondary);
+}
+
+.tooltip-row .value {
+  font-weight: 700;
+  color: var(--text-primary);
+}
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -289,6 +415,7 @@
 .bar-fill.purple { background: linear-gradient(90deg, rgba(168, 85, 247, 0.7), var(--accent-secondary)); }
 .bar-fill.emerald { background: linear-gradient(90deg, rgba(16, 185, 129, 0.7), var(--accent-emerald)); }
 .bar-fill.rose { background: linear-gradient(90deg, rgba(244, 63, 94, 0.7), var(--accent-rose)); }
+.bar-fill.ruby { background: linear-gradient(90deg, #e11d48, #9f1239); }
 .bar-fill.amber { background: linear-gradient(90deg, rgba(245, 158, 11, 0.7), var(--accent-amber)); }
 
 /* ── TIMELINE ── */

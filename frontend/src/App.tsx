@@ -98,7 +98,20 @@ function App() {
     keyHoverBtn: null as HTMLElement | null,
     keyHoverStart: 0,
     hasKeyWarned: false,
+    isDesktop: window.innerWidth >= 768 && window.innerHeight < window.innerWidth,
   });
+
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768 && window.innerHeight < window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 768 && window.innerHeight < window.innerWidth;
+      setIsDesktop(desktop);
+      stateRef.current.isDesktop = desktop;
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     stateRef.current.typedText = typedText;
@@ -710,6 +723,7 @@ function App() {
 
         // High-sensitivity eye tracking for keyboard (normal mode only)
         if (stateRef.current.inputMode === 'standard') updateKeyboardGaze(landmarks);
+        else if (keyboardCursorRef.current) keyboardCursorRef.current.style.display = 'none';
       }
     }
     ctx.restore();
@@ -764,7 +778,9 @@ function App() {
     const centeredX = rawNormX - calibBaselineX + 0.5; // recentered around 0.5
     const centeredY = rawNormY - calibBaselineY;        // recentered around 0
 
-    const GAZE_X_MIN = 0.28, GAZE_X_MAX = 0.72;
+    const desktop = stateRef.current.isDesktop;
+    const GAZE_X_MIN = desktop ? 0.22 : 0.28;
+    const GAZE_X_MAX = desktop ? 0.78 : 0.72;
     const GAZE_Y_RANGE = 0.40;
     const mappedX = Math.max(0, Math.min(1, (centeredX - GAZE_X_MIN) / (GAZE_X_MAX - GAZE_X_MIN)));
     const mappedY = Math.max(0, Math.min(1, (centeredY + GAZE_Y_RANGE) / (2 * GAZE_Y_RANGE)));
@@ -1012,11 +1028,32 @@ function App() {
         <div style={{display: 'flex', gap: '10px', flexGrow: 1, minHeight: 0}}>
             {inputMode === 'standard' ? (
                 <div id="keyboard-area" style={{position: 'relative', flexGrow: 1, minHeight: 0}}>
-                  <div className="keyboard-grid" style={{height: '100%'}}>
-                    {['A', 'B', 'C', 'D'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
-                    {['E', 'F', 'G', 'H'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
-                    {['I', 'J', 'K', 'L'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
-                    {['SPACE', 'CLEAR', 'BACKSPACE'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''}`} data-letter={l} style={l === 'BACKSPACE' ? {gridColumn: 'span 2'} : {}}>{l === 'SPACE' ? '␣' : l === 'CLEAR' ? 'CLR' : 'DEL ALL'}</button>)}
+                  <div className={`keyboard-grid ${isDesktop ? 'desktop-grid' : 'mobile-grid'}`} style={{height: '100%'}}>
+                    {isDesktop ? (
+                      <>
+                        {/* PC Layout: 0-9 then A-Z */}
+                        {['1','2','3','4','5','6','7','8','9','0'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
+                        {['Q','W','E','R','T','Y','U','I','O','P'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
+                        {['A','S','D','F','G','H','J','K','L', 'SPACE'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l === 'SPACE' ? '␣' : l}</button>)}
+                        {['Z','X','C','V','B','N','M', 'CLEAR', 'BACKSPACE'].map(l => (
+                          <button key={l} 
+                            className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''}`} 
+                            data-letter={l} 
+                            style={l === 'BACKSPACE' ? {gridColumn: 'span 2'} : {}}
+                          >
+                            {l === 'CLEAR' ? 'CLR' : l === 'BACKSPACE' ? 'DEL ALL' : l}
+                          </button>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        {/* Mobile Layout: A-L (existing) */}
+                        {['A', 'B', 'C', 'D'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
+                        {['E', 'F', 'G', 'H'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
+                        {['I', 'J', 'K', 'L'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''} ${l === expectedNextChar ? 'key-floating' : ''}`} data-letter={l}>{l}</button>)}
+                        {['SPACE', 'CLEAR', 'BACKSPACE'].map(l => <button key={l} className={`gaze-btn ${hoverBtn?.dataset.letter === l ? 'hover-active' : ''}`} data-letter={l} style={l === 'BACKSPACE' ? {gridColumn: 'span 2'} : {}}>{l === 'SPACE' ? '␣' : l === 'CLEAR' ? 'CLR' : 'DEL ALL'}</button>)}
+                      </>
+                    )}
                   </div>
 
                   {/* ── Keyboard Gaze Cursor (circle + dot + dwell ring) ── */}

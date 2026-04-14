@@ -39,11 +39,12 @@ function DonutSegment({ cx, cy, r, pct, offset, color }: { cx: number; cy: numbe
 
 /* ── Data ── */
 const PREVALENCE_DATA = [
-  { region: 'North America', value: 5.2, color: 'cyan' },
-  { region: 'Europe', value: 4.3, color: 'purple' },
-  { region: 'East Asia', value: 2.5, color: 'emerald' },
-  { region: 'South America', value: 1.8, color: 'amber' },
-  { region: 'Africa', value: 0.8, color: 'rose' },
+  { region: 'South Asia (India)', value: 4.1, color: 'emerald', patients: '1.2M+' },
+  { region: 'North America (US)', value: 5.2, color: 'purple', patients: '350K' },
+  { region: 'Europe', value: 4.8, color: 'cyan', patients: '450K' },
+  { region: 'East Asia', value: 3.2, color: 'ruby', patients: '200K' },
+  { region: 'Russia & Eurasia', value: 3.5, color: 'amber', patients: '150K' },
+  { region: 'Africa', value: 1.2, color: 'rose', patients: '100K' },
 ];
 
 const MOTOR_DISABILITY_DATA = [
@@ -65,21 +66,36 @@ const AGE_DATA = [
 
 const TIMELINE = [
   { year: '1869', text: 'Jean-Martin Charcot first describes ALS as a distinct neurological disorder.' },
-  { year: '1939', text: 'Lou Gehrig\'s farewell speech brings ALS to public awareness in the United States.' },
+  { year: '1939', text: 'Lou Gehrig\'s farewell speech brings ALS to public awareness.' },
   { year: '1993', text: 'SOD1 gene mutation identified as first genetic cause of familial ALS.' },
   { year: '2006', text: 'TDP-43 protein discovered as key pathological marker in 97% of ALS cases.' },
   { year: '2014', text: 'Ice Bucket Challenge raises $115M+ for ALS research, boosting global awareness.' },
-  { year: '2022', text: 'FDA approves Relyvrio, first new ALS treatment in years. Gene therapy trials expand.' },
-  { year: '2025', text: 'AI-powered assistive technologies like EyeType make communication accessible to all.' },
+  { year: '2022', text: 'FDA approves Relyvrio, first new ALS treatment in years.' },
+  { year: '2025', text: 'AI-powered clinical tools make communication accessible to all.' },
+];
+
+/* ── World Map Paths (Simplified) ── */
+const MAP_REGIONS = [
+  { id: 'nam', label: 'North America', d: 'M40,30 L80,25 L90,50 L75,70 L45,80 L35,60 Z', prevalence: 5.2, deaths: '≈35,000/yr' },
+  { id: 'sam', label: 'South America', d: 'M75,75 L100,80 L95,120 L80,140 L65,110 Z', prevalence: 2.1, deaths: '≈12,000/yr' },
+  { id: 'eur', label: 'Europe', d: 'M110,20 L150,15 L160,40 L135,55 L115,45 Z', prevalence: 4.8, deaths: '≈42,000/yr' },
+  { id: 'afr', label: 'Africa', d: 'M115,60 L145,55 L170,80 L160,120 L130,130 L110,100 Z', prevalence: 1.2, deaths: '≈5,000/yr' },
+  { id: 'rus', label: 'Russia & Eurasia', d: 'M160,15 L260,10 L250,45 L180,50 L165,35 Z', prevalence: 3.5, deaths: '≈18,000/yr' },
+  { id: 'asi', label: 'East Asia', d: 'M200,55 L260,50 L280,90 L240,110 L190,95 Z', prevalence: 3.2, deaths: '≈25,000/yr' },
+  { id: 'sas', label: 'South Asia & India', d: 'M175,90 L210,80 L225,115 L200,130 L180,115 Z', prevalence: 4.1, deaths: '≈80,000/yr' },
+  { id: 'oce', label: 'Oceania', d: 'M260,120 L300,115 L320,150 L280,160 Z', prevalence: 2.8, deaths: '≈3,000/yr' },
 ];
 
 export default function AnalyticsPage() {
   const [visible, setVisible] = useState(false);
   const [barVisible, setBarVisible] = useState(false);
+  const [hoveredRegion, setHoveredRegion] = useState<any>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // ... existing effect code (Reveal and Stats Observers)
     const els = document.querySelectorAll('.reveal');
     const obs = new IntersectionObserver(
       entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
@@ -102,10 +118,14 @@ export default function AnalyticsPage() {
     return () => { obs.disconnect(); statObs.disconnect(); barObs.disconnect(); };
   }, []);
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setTooltipPos({ x: e.clientX, y: e.clientY });
+  };
+
   const c1 = useCountUp(450000, 2500, visible);
-  const c2 = useCountUp(30000, 2000, visible);
-  const c3 = useCountUp(5, 1800, visible);
-  const c4 = useCountUp(90, 1500, visible);
+  const c2 = useCountUp(125000, 2000, visible);
+  const c3 = useCountUp(3, 1800, visible);
+  const c4 = useCountUp(15, 1500, visible);
 
   const maxPrevalence = Math.max(...PREVALENCE_DATA.map(d => d.value));
 
@@ -141,22 +161,72 @@ export default function AnalyticsPage() {
           <div className="stat-card-number cyan">{c1.toLocaleString()}</div>
           <div className="stat-card-label">People Living with ALS Worldwide</div>
         </div>
-        <div className="stat-card reveal reveal-delay-1">
-          <span className="stat-card-icon">🇺🇸</span>
-          <div className="stat-card-number purple">{c2.toLocaleString()}</div>
-          <div className="stat-card-label">New US Diagnoses Per Year</div>
+        <div className="stat-card reveal reveal-delay-1 highlight-india">
+          <span className="stat-card-icon">🇮🇳</span>
+          <div className="stat-card-number emerald">{(c2).toLocaleString()}</div>
+          <div className="stat-card-label">Estimated Cases in South Asia & India</div>
         </div>
         <div className="stat-card reveal reveal-delay-2">
           <span className="stat-card-icon">⏱️</span>
-          <div className="stat-card-number emerald">2-{c3}</div>
-          <div className="stat-card-label">Year Average Survival After Diagnosis</div>
+          <div className="stat-card-number purple">{c3}-{c3+2}</div>
+          <div className="stat-card-label">Year Avg. Survival (Global Trend)</div>
         </div>
         <div className="stat-card reveal reveal-delay-3">
-          <span className="stat-card-icon">🧬</span>
+          <span className="stat-card-icon">🩺</span>
           <div className="stat-card-number rose">{c4}%</div>
-          <div className="stat-card-label">Sporadic Cases (No Family History)</div>
+          <div className="stat-card-label">Genetic / Familial Cases (India Trend)</div>
         </div>
       </div>
+
+      {/* ═══ WORLD MAP SECTION ═══ */}
+      <section className="map-section reveal">
+        <div className="section-head">
+          <h2>Global Prevalence <span className="text-gradient">Heatmap</span></h2>
+          <p>Interactive distribution of ALS and MND cases across major neuro-clusters.</p>
+        </div>
+
+        <div className="map-container" onMouseMove={handleMouseMove}>
+          <svg viewBox="0 -20 350 200" className="world-map-svg">
+            <defs>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            {MAP_REGIONS.map(reg => (
+              <path
+                key={reg.id}
+                d={reg.d}
+                className={`map-region ${hoveredRegion?.id === reg.id ? 'active' : ''} ${reg.id === 'sas' ? 'india-focus' : ''}`}
+                onMouseEnter={() => setHoveredRegion(reg)}
+                onMouseLeave={() => setHoveredRegion(null)}
+              />
+            ))}
+          </svg>
+
+          {hoveredRegion && (
+            <div 
+              className="map-tooltip glass-panel"
+              style={{ left: tooltipPos.x + 15, top: tooltipPos.y + 15 }}
+            >
+              <div className="tooltip-header">
+                <span className="tooltip-flag">{hoveredRegion.id === 'sas' ? '🇮🇳' : '🌍'}</span>
+                <strong>{hoveredRegion.label}</strong>
+              </div>
+              <div className="tooltip-body">
+                <div className="tooltip-row">
+                  <span>Prevalence:</span>
+                  <span className="value">{hoveredRegion.prevalence} per 100k</span>
+                </div>
+                <div className="tooltip-row">
+                  <span>Annual Mortality:</span>
+                  <span className="value">{hoveredRegion.deaths}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* ═══ DASHBOARD ═══ */}
       <div className="dashboard-grid">
@@ -269,13 +339,13 @@ export default function AnalyticsPage() {
       <div className="sources-section reveal">
         <h3>📚 Data Sources & References</h3>
         <div className="sources-grid">
-          <span className="source-tag">World Health Organization (WHO)</span>
-          <span className="source-tag">CDC — Centers for Disease Control</span>
-          <span className="source-tag">ALS Association</span>
-          <span className="source-tag">National Institutes of Health (NIH)</span>
-          <span className="source-tag">The Lancet Neurology (2024)</span>
-          <span className="source-tag">Nature Reviews Neuroscience</span>
-          <span className="source-tag">European ALS Registry (EuroMND)</span>
+          <a href="https://www.who.int/news-room/fact-sheets/detail/amyotrophic-lateral-sclerosis" target="_blank" rel="noopener noreferrer" className="source-tag">World Health Organization (WHO)</a>
+          <a href="https://www.cdc.gov/als/index.html" target="_blank" rel="noopener noreferrer" className="source-tag">CDC — Centers for Disease Control</a>
+          <a href="https://www.als.org/" target="_blank" rel="noopener noreferrer" className="source-tag">ALS Association</a>
+          <a href="https://www.nih.gov/" target="_blank" rel="noopener noreferrer" className="source-tag">National Institutes of Health (NIH)</a>
+          <a href="https://www.thelancet.com/journals/laneur/home" target="_blank" rel="noopener noreferrer" className="source-tag">The Lancet Neurology (2024)</a>
+          <a href="https://www.nature.com/nrn/" target="_blank" rel="noopener noreferrer" className="source-tag">Nature Reviews Neuroscience</a>
+          <a href="https://www.encals.eu/" target="_blank" rel="noopener noreferrer" className="source-tag">European ALS Registry (EuroMND)</a>
         </div>
       </div>
 

@@ -256,12 +256,27 @@ img { max-width: 100%; height: auto; display: block; }
 
 .keyboard-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(4, 1fr);
   gap: 6px;
   flex-grow: 1;
   min-height: 0;
   height: 100%;
+}
+
+.keyboard-grid.mobile-grid {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+}
+
+.keyboard-grid.desktop-grid {
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.keyboard-grid.desktop-grid .gaze-btn {
+  font-size: 1.4rem;
+  font-weight: 700;
+  aspect-ratio: 1;
 }
 
 .action-bar {
