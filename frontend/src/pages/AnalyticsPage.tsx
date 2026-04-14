@@ -22,49 +22,85 @@ function useCountUp(target: number, duration = 2000, start = false) {
   return value;
 }
 
-/* ── Mini Sparkline Chart ── */
+/* ── Mini Sparkline Chart (Interactive) ── */
 function MiniTrendChart({ data, color }: { data: number[], color: string }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   if (!data || data.length === 0) return null;
   const max = Math.max(...data);
   const min = Math.min(...data);
   const range = (max - min) || 1;
-  const width = 240;
-  const height = 100;
+  const width = 300;
+  const height = 120;
 
   const points = data.map((v, i) => {
     const x = (i / (data.length - 1)) * width;
-    const y = height - ((v - min) / range) * (height - 10) - 5;
-    return `${x},${y}`;
-  }).join(' ');
+    const y = height - ((v - min) / range) * (height - 30) - 15;
+    return { x, y, value: v, year: 2020 + i };
+  });
 
-  const areaPoints = `${points} ${width},${height} 0,${height}`;
+  const polyPoints = points.map(p => `${p.x},${p.y}`).join(' ');
+  const areaPoints = `${polyPoints} ${width},${height} 0,${height}`;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="mini-trend-chart">
-      <defs>
-        <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polyline
-        fill={`url(#grad-${color})`}
-        points={areaPoints}
-      />
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-      {data.map((v, i) => {
-        const x = (i / (data.length - 1)) * width;
-        const y = height - ((v - min) / range) * (height - 10) - 5;
-        return <circle key={i} cx={x} cy={y} r="4" fill="#fff" stroke={color} strokeWidth="2" />;
-      })}
-    </svg>
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="mini-trend-chart">
+        <defs>
+          <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        
+        {/* Grid Lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map(pct => (
+          <line 
+            key={pct}
+            x1="0" y1={pct * height} x2={width} y2={pct * height}
+            className="chart-grid-line"
+          />
+        ))}
+
+        {/* Axis Labels */}
+        <text x="-5" y="15" className="chart-axis-label" textAnchor="end">{max}</text>
+        <text x="-5" y={height - 5} className="chart-axis-label" textAnchor="end">{min}</text>
+
+        <polyline fill={`url(#grad-${color})`} points={areaPoints} />
+        <polyline
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={polyPoints}
+        />
+        
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x} cy={p.y}
+            r={activeIndex === i ? 6 : 4}
+            fill={activeIndex === i ? "#fff" : color}
+            stroke={activeIndex === i ? color : "#fff"}
+            strokeWidth="2"
+            className={`chart-point ${activeIndex === i ? 'active' : ''}`}
+            onMouseEnter={() => setActiveIndex(i)}
+            onMouseLeave={() => setActiveIndex(null)}
+            onClick={() => setActiveIndex(i)}
+          />
+        ))}
+      </svg>
+      {activeIndex !== null && (
+        <div 
+          className="chart-value-tooltip"
+          style={{ 
+            left: `${(activeIndex / (data.length - 1)) * 100}%`,
+            top: `${(points[activeIndex].y / height) * 100}%`
+          }}
+        >
+          {points[activeIndex].value} / 100k
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -3782,7 +3818,6 @@ export default function AnalyticsPage() {
             </Geographies>
           </ComposableMap>
 
-/* ── FIXED INFO PANEL (Dual-Pane) ── */
           <div className="region-info-panel glass-panel">
             {!hoveredRegion ? (
               <div className="panel-pane">
@@ -3985,12 +4020,12 @@ export default function AnalyticsPage() {
           <a href="https://www.who.int/news-room/fact-sheets/detail/amyotrophic-lateral-sclerosis" target="_blank" rel="noopener noreferrer" className="source-tag">World Health Organization (WHO)</a>
           <a href="https://www.cdc.gov/als/index.html" target="_blank" rel="noopener noreferrer" className="source-tag">CDC — Centers for Disease Control</a>
           <a href="https://www.als.org/" target="_blank" rel="noopener noreferrer" className="source-tag">ALS Association</a>
-          <a href="https://www.nih.gov/" target="_blank" rel="noopener noreferrer" className="source-tag">National Institutes of Health (NIH)</a>
-          <a href="https://www.thelancet.com/journals/laneur/home" target="_blank" rel="noopener noreferrer" className="source-tag">The Lancet Neurology (2024)</a>
-          <a href="https://www.nature.com/nrn/" target="_blank" rel="noopener noreferrer" className="source-tag">Nature Reviews Neuroscience</a>
+          <a href="https://www.nih.gov/about-nih/what-we-do/nih-almanac/national-institute-neurological-disorders-stroke-ninds" target="_blank" rel="noopener noreferrer" className="source-tag">National Institutes of Health (NIH)</a>
+          <a href="https://www.thelancet.com/journals/laneur/article/PIIS1474-4422(18)30403-9/fulltext" target="_blank" rel="noopener noreferrer" className="source-tag">The Lancet Neurology (Global Burden Study)</a>
+          <a href="https://www.nature.com/articles/nrneurol.2017.135" target="_blank" rel="noopener noreferrer" className="source-tag">Nature Reviews Neurology (ALS Epidemiology)</a>
           <a href="https://www.encals.eu/" target="_blank" rel="noopener noreferrer" className="source-tag">European ALS Registry (EuroMND)</a>
-          <div className="source-tag" style={{ background: 'rgba(168, 85, 247, 0.05)', borderColor: 'var(--accent-secondary)' }}>
-            <strong>Analytics Modeling:</strong> 5-Year Trends derived from Age-Standardized Growth Models (2020-2025)
+          <div className="source-tag highlight-source">
+            <strong>Analytics Modeling:</strong> 5-Year Trends derived from Global Age-Standardized Incidence Growth Models (2020-2025)
           </div>
         </div>
       </div>
