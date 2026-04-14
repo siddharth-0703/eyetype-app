@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { ComposableMap, Geographies, Geography, Sphere, Graticule } from "react-simple-maps";
 import Navbar from '../components/Navbar';
 import { useMode } from '../context/ModeContext';
 import './AnalyticsPage.css';
@@ -75,35 +76,25 @@ const TIMELINE = [
   { year: '2025', text: 'AI-powered clinical tools make communication accessible to all.' },
 ];
 
-import { ComposableMap, Geographies, Geography, Sphere, Graticule } from "react-simple-maps";
-
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-/* ── World Map Data (Realistic ISO Mapping) ── */
+/* ── World Map Data (Realistic ISO Numeric Mapping) ── */
 const MAP_DATA: Record<string, { prevalence: number, deaths: string, color: string }> = {
-  // India (South Asia Focus)
-  "IND": { prevalence: 4.1, deaths: "≈100,000/yr", color: "#10b981" },
-  // North America
-  "USA": { prevalence: 5.2, deaths: "≈35,000/yr", color: "#a855f7" },
-  "CAN": { prevalence: 5.2, deaths: "≈3,000/yr", color: "#a855f7" },
-  // Europe
-  "GBR": { prevalence: 4.8, deaths: "≈5,000/yr", color: "#00d4ff" },
-  "FRA": { prevalence: 4.8, deaths: "≈4,500/yr", color: "#00d4ff" },
-  "DEU": { prevalence: 4.8, deaths: "≈6,000/yr", color: "#00d4ff" },
-  // East Asia
-  "CHN": { prevalence: 3.2, deaths: "≈18,000/yr", color: "#f43f5e" },
-  "JPN": { prevalence: 3.2, deaths: "≈4,000/yr", color: "#f43f5e" },
-  // Russia
-  "RUS": { prevalence: 3.5, deaths: "≈18,000/yr", color: "#f59e0b" },
-  // Africa
-  "ZAF": { prevalence: 1.2, deaths: "≈1,000/yr", color: "#ec4899" },
-  "EGY": { prevalence: 1.2, deaths: "≈800/yr", color: "#ec4899" },
-  "NGA": { prevalence: 1.2, deaths: "≈1,200/yr", color: "#ec4899" },
-  // South America
-  "BRA": { prevalence: 2.1, deaths: "≈8,000/yr", color: "#06b6d4" },
-  "ARG": { prevalence: 2.1, deaths: "≈2,000/yr", color: "#06b6d4" },
-  // Australia
-  "AUS": { prevalence: 2.8, deaths: "≈3,000/yr", color: "#8b5cf6" },
+  "356": { prevalence: 4.1, deaths: "≈100,000/yr", color: "#10b981" }, // India
+  "840": { prevalence: 5.2, deaths: "≈35,000/yr", color: "#a855f7" }, // US
+  "124": { prevalence: 5.2, deaths: "≈3,000/yr", color: "#a855f7" }, // Canada
+  "826": { prevalence: 4.8, deaths: "≈5,000/yr", color: "#00d4ff" }, // UK
+  "250": { prevalence: 4.8, deaths: "≈4,500/yr", color: "#00d4ff" }, // France
+  "276": { prevalence: 4.8, deaths: "≈6,000/yr", color: "#00d4ff" }, // Germany
+  "156": { prevalence: 3.2, deaths: "≈18,000/yr", color: "#f43f5e" }, // China
+  "392": { prevalence: 3.2, deaths: "≈4,000/yr", color: "#f43f5e" }, // Japan
+  "643": { prevalence: 3.5, deaths: "≈18,000/yr", color: "#f59e0b" }, // Russia
+  "710": { prevalence: 1.2, deaths: "≈1,000/yr", color: "#ec4899" }, // South Africa
+  "818": { prevalence: 1.2, deaths: "≈800/yr", color: "#ec4899" }, // Egypt
+  "566": { prevalence: 1.2, deaths: "≈1,200/yr", color: "#ec4899" }, // Nigeria
+  "076": { prevalence: 2.1, deaths: "≈8,000/yr", color: "#06b6d4" }, // Brazil
+  "032": { prevalence: 2.1, deaths: "≈2,000/yr", color: "#06b6d4" }, // Argentina
+  "036": { prevalence: 2.8, deaths: "≈3,000/yr", color: "#8b5cf6" }, // Australia
 };
 
 export default function AnalyticsPage() {
@@ -128,10 +119,9 @@ export default function AnalyticsPage() {
       if (regionEl) {
         const id = regionEl.getAttribute('data-id');
         if (id) {
-          // Find the data from MAP_DATA or just the name if available
           const data = MAP_DATA[id];
           if (data) {
-            setHoveredRegion({ ...data, geoId: id, label: "Selected Region" }); // Simplified label for gaze
+            setHoveredRegion({ ...data, geoId: id, label: "Selected Region" });
           }
         }
       } else {
@@ -141,7 +131,7 @@ export default function AnalyticsPage() {
   }, [gazePos, mode]);
 
   useEffect(() => {
-    // ... existing effect code (Reveal and Stats Observers)
+    // Reveal and Stats Observers
     const els = document.querySelectorAll('.reveal');
     const obs = new IntersectionObserver(
       entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
@@ -186,7 +176,7 @@ export default function AnalyticsPage() {
     <div className="analytics-page">
       <Navbar />
 
-      {/* ═══ HERO ═══ */}
+      {/* Hero Section */}
       <section className="analytics-hero">
         <h1>ALS & Motor Disability <span className="text-gradient">Analytics</span></h1>
         <p>
@@ -199,7 +189,7 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* ═══ KEY STATS ═══ */}
+      {/* Stats Section */}
       <div className="stats-row" ref={triggerRef}>
         <div className="stat-card reveal">
           <span className="stat-card-icon">🌍</span>
@@ -218,7 +208,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* ═══ WORLD MAP SECTION ═══ */}
+      {/* World Map Section */}
       <section className="map-section reveal">
         <div className="section-head">
           <h2>Global Prevalence <span className="text-gradient">Heatmap</span></h2>
@@ -232,23 +222,24 @@ export default function AnalyticsPage() {
             height={400}
             style={{ width: "100%", height: "auto" }}
           >
-            <Sphere stroke="#E4E5E6" strokeWidth={0.5} id={""} fill={""} />
+            <Sphere stroke="#E4E5E6" strokeWidth={0.5} />
             <Graticule stroke="#E4E5E6" strokeWidth={0.5} />
             <Geographies geography={geoUrl}>
               {({ geographies }) =>
                 geographies.map((geo) => {
-                  const isIndia = geo.id === "356" || geo.properties.name === "India";
-                  const data = MAP_DATA[geo.id] || MAP_DATA[geo.properties.ISO_A3] || (isIndia ? MAP_DATA["IND"] : null);
+                  const geoId = geo.id || geo.properties?.id;
+                  const data = MAP_DATA[geoId];
+                  const isIndia = geoId === "356";
                   
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
-                      data-id={geo.id}
-                      className={`map-region ${hoveredRegion?.geoId === geo.id ? 'active' : ''} ${isIndia ? 'india-focus' : ''}`}
+                      data-id={geoId}
+                      className={`map-region ${hoveredRegion?.geoId === geoId ? 'active' : ''} ${isIndia ? 'india-focus' : ''}`}
                       onMouseEnter={() => {
                         if (mode !== 'gaze' && data) {
-                          setHoveredRegion({ ...data, label: geo.properties.name, geoId: geo.id });
+                          setHoveredRegion({ ...data, label: geo.properties.name, geoId });
                         }
                       }}
                       onMouseLeave={() => {
