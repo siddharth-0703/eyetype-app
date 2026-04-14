@@ -335,7 +335,6 @@ export default function AnalyticsPage() {
   const [visible, setVisible] = useState(false);
   const [barVisible, setBarVisible] = useState(false);
   const [hoveredRegion, setHoveredRegion] = useState<any>(null);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const { mode, gazePos } = useMode();
   const triggerRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -345,17 +344,17 @@ export default function AnalyticsPage() {
     if (mode === 'gaze') {
       const x = gazePos.x;
       const y = gazePos.y;
-      setTooltipPos({ x, y });
       
       const elements = document.elementsFromPoint(x, y);
       const regionEl = elements.find(el => el.classList.contains('map-region')) as HTMLElement | undefined;
       
       if (regionEl) {
         const id = regionEl.getAttribute('data-id');
+        const name = regionEl.getAttribute('data-name'); // Need to add this attribute to Geography
         if (id) {
           const data = MAP_DATA[id];
           if (data) {
-            setHoveredRegion({ ...data, geoId: id, label: "Selected Region" });
+            setHoveredRegion({ ...data, geoId: id, label: name || "Selected Region" });
           }
         }
       } else {
@@ -387,10 +386,6 @@ export default function AnalyticsPage() {
 
     return () => { obs.disconnect(); statObs.disconnect(); barObs.disconnect(); };
   }, []);
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    setTooltipPos({ x: e.clientX, y: e.clientY });
-  };
 
   const c1 = useCountUp(450000, 2500, visible);
   const c2 = useCountUp(125000, 2000, visible);
@@ -449,7 +444,7 @@ export default function AnalyticsPage() {
           <p>Interactive distribution of ALS and MND cases across major neuro-clusters.</p>
         </div>
 
-        <div className="map-container" onMouseMove={handleMouseMove}>
+        <div className="map-container">
           <ComposableMap
             projectionConfig={{ scale: 145 }}
             width={800}
@@ -470,6 +465,7 @@ export default function AnalyticsPage() {
                       key={geo.rsmKey}
                       geography={geo}
                       data-id={geoId}
+                      data-name={geo.properties.name}
                       className={`map-region ${hoveredRegion?.geoId === geoId ? 'active' : ''} ${isIndia ? 'india-focus' : ''}`}
                       onMouseEnter={() => {
                         if (mode !== 'gaze' && data) {
@@ -503,27 +499,53 @@ export default function AnalyticsPage() {
             </Geographies>
           </ComposableMap>
 
-          {hoveredRegion && (
-            <div 
-              className="map-tooltip glass-panel"
-              style={{ left: tooltipPos.x + 15, top: tooltipPos.y + 15 }}
-            >
-              <div className="tooltip-header">
-                <span className="tooltip-flag">{hoveredRegion.label === 'India' ? '🇮🇳' : '🌍'}</span>
-                <strong>{hoveredRegion.label}</strong>
-              </div>
-              <div className="tooltip-body">
-                <div className="tooltip-row">
-                  <span>Prevalence:</span>
-                  <span className="value">{hoveredRegion.prevalence} per 100k</span>
+          {/* Region Info Panel (Fixed Position) */}
+          <div className="region-info-panel glass-panel">
+            {!hoveredRegion ? (
+              <>
+                <div className="global-insight-badge">Global Insight</div>
+                <div className="info-panel-header">
+                  <h4>Worldwide Stats</h4>
+                  <div className="panel-region-tag">Global Averages</div>
                 </div>
-                <div className="tooltip-row">
-                  <span>Annual Mortality:</span>
-                  <span className="value">{hoveredRegion.deaths}</span>
+                <div className="info-panel-body">
+                  <div className="info-metric">
+                    <span className="metric-label">Global Prevalence</span>
+                    <span className="metric-value">4.5 per 100k</span>
+                  </div>
+                  <div className="info-metric">
+                    <span className="metric-label">Total Affected</span>
+                    <span className="metric-value">450,000+</span>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+                <div className="info-panel-footer">
+                  *Averaged across 249 territories
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="info-panel-header">
+                  <h4>{hoveredRegion.label}</h4>
+                  <div className="panel-region-tag">
+                    {hoveredRegion.label === 'India' ? '🇮🇳 Core Data' : '🌍 Regional Data'}
+                  </div>
+                </div>
+                <div className="info-panel-body">
+                  <div className="info-metric">
+                    <span className="metric-label">ALS Prevalence</span>
+                    <span className="metric-value highlight">{hoveredRegion.prevalence} per 100k</span>
+                  </div>
+                  <div className="info-metric">
+                    <span className="metric-label">Annual Mortality</span>
+                    <span className="metric-value">{hoveredRegion.deaths}</span>
+                  </div>
+                </div>
+                <div className="info-panel-footer">
+                  Calculated based on 2024 health trends
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </section>
 

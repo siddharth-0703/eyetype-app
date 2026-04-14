@@ -145,12 +145,13 @@
 
 .map-container {
   position: relative;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(10, 14, 26, 0.4);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  padding: 2rem;
+  padding: 3rem 4rem 4rem; /* More space for the fixed panel */
   cursor: crosshair;
   overflow: hidden;
+  box-shadow: inset 0 0 100px rgba(0, 212, 255, 0.05);
 }
 
 .world-map-svg {
@@ -186,57 +187,103 @@
   stroke: #fff;
 }
 
-/* ── TOOLTIP ── */
-.map-tooltip {
-  position: fixed;
-  z-index: 1000;
-  pointer-events: none;
-  min-width: 180px;
-  padding: 1rem;
-  background: rgba(10, 14, 26, 0.9) !important;
-  border-color: var(--accent-color) !important;
-  animation: tooltipFadeIn 0.2s ease-out;
-}
-
-@keyframes tooltipFadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.tooltip-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 0.8rem;
-  border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 0.5rem;
-}
-
-.tooltip-flag {
-  font-size: 1.2rem;
-}
-
-.tooltip-body {
+/* ── FIXED INFO PANEL ── */
+.region-info-panel {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 320px;
+  min-height: 180px;
+  z-index: 100;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 1.2rem;
+  padding: 1.8rem;
+  text-align: left;
+  animation: panelSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: auto;
 }
 
-.tooltip-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+@keyframes panelSlideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.info-panel-header {
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 1rem;
+}
+
+.info-panel-header h4 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-bottom: 0.3rem;
+  color: #fff;
+}
+
+.panel-region-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent-color);
+  font-weight: 600;
 }
 
-.tooltip-row span:first-child {
+.info-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.info-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 0.7rem;
   color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.tooltip-row .value {
+.metric-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.6rem;
   font-weight: 700;
   color: var(--text-primary);
 }
+
+.metric-value.highlight {
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.info-panel-footer {
+  margin-top: auto;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.global-insight-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: var(--radius-full);
+  color: var(--accent-secondary);
+  font-size: 0.65rem;
+  margin-bottom: 1rem;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -506,6 +553,14 @@
 @media (max-width: 1024px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
   .dashboard-grid { grid-template-columns: 1fr; }
+  .region-info-panel {
+    position: relative;
+    bottom: 0;
+    right: 0;
+    width: 100%;
+    margin-top: 1.5rem;
+  }
+  .map-container { padding: 1.5rem; }
 }
 
 @media (max-width: 768px) {
