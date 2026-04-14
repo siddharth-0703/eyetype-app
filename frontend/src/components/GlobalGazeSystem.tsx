@@ -25,7 +25,17 @@ export const GlobalGazeSystem: React.FC = () => {
     const FaceMesh = (window as any).FaceMesh;
     const Camera = (window as any).Camera;
 
-    if (!FaceMesh || !Camera) return;
+    if (!FaceMesh || !Camera) {
+      console.log("MediaPipe not ready, retrying in 1s...");
+      setTimeout(initGaze, 1000);
+      return;
+    }
+
+    if (!videoRef.current) {
+      console.log("Video ref not ready, retrying in 500ms...");
+      setTimeout(initGaze, 500);
+      return;
+    }
 
     const faceMesh = new FaceMesh({
       locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,

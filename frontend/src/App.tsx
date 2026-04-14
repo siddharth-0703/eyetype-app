@@ -413,7 +413,8 @@ function App() {
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    if (!results || !results.image) {
+    // Check if we have data to process (either an image or landmarks)
+    if (!results || (!results.image && (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0))) {
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
@@ -422,9 +423,18 @@ function App() {
 
     if (cameraStatus !== 'Live') setCameraStatus('Live');
     
-    // Draw landmarks only if needed, focus on processing data
-    // ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
-    // ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+    // Draw background image if available
+    if (results.image) {
+      ctx.save();
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    } else {
+      // If no image but we have landmarks, draw a tech-styled background
+      ctx.fillStyle = "rgba(10, 14, 26, 0.8)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     const drawConnectors = (window as any).drawConnectors;
     const FACEMESH_TESSELATION = (window as any).FACEMESH_TESSELATION;
